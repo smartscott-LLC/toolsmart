@@ -350,6 +350,13 @@ html, body {
 .cm-mermaid-bracket  { color: #5a4a3a; }
 .cm-mermaid-node-id  { color: #2c4a8c; font-weight: 500; }
 
+/* Mermaid syntax highlighting — dark mode overrides */
+.theme-midnight .cm-mermaid-keyword { color: var(--pearl-beige); }
+.theme-midnight .cm-mermaid-string  { color: #86c98a; }
+.theme-midnight .cm-mermaid-arrow   { color: var(--burnt-caramel); }
+.theme-midnight .cm-mermaid-bracket { color: #c8b99e; }
+.theme-midnight .cm-mermaid-node-id { color: #7cb8e0; }
+
 /* Error underline */
 .cm-error-line {
   background: rgba(211,47,47,0.06);
@@ -441,6 +448,7 @@ html, body {
 #preview-canvas svg {
   display: block;
   max-width: none;
+  width: auto;
   height: auto;
 }
 
@@ -874,7 +882,7 @@ html, body {
 
 .vault-privacy-text {
   font-size: 0.8125rem;
-  color: var(--evergreen);
+  color: var(--text);
 }
 
 .vault-privacy-text strong { display: block; font-weight: 700; }
