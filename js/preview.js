@@ -87,8 +87,30 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
   if (!trimmed) {
     _canvas.innerHTML = `
       <div class="preview-empty">
-        <div class="preview-empty-icon">⬡</div>
-        <div class="preview-empty-text">Your diagram will appear here</div>
+        <svg class="preview-watermark" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- Hex motif -->
+          <polygon points="40,20 70,4 100,20 100,52 70,68 40,52"
+                   fill="none" stroke="#1e3922" stroke-width="1.5" opacity="0.18"/>
+          <polygon points="42,21 70,6 98,21 98,51 70,66 42,51"
+                   fill="none" stroke="#c25e07" stroke-width="0.6" opacity="0.12"/>
+          <text x="70" y="42" text-anchor="middle" dominant-baseline="middle"
+                font-family="monospace" font-size="18" fill="#1e3922" opacity="0.22">⬡</text>
+          <!-- Wordmark -->
+          <text x="120" y="32" font-family="'Inter','Segoe UI',system-ui,sans-serif"
+                font-size="22" font-weight="700" fill="#1e3922" opacity="0.18"
+                letter-spacing="1">ToolSmart</text>
+          <text x="120" y="52" font-family="'Inter','Segoe UI',system-ui,sans-serif"
+                font-size="11" fill="#c25e07" opacity="0.28" letter-spacing="2"
+                font-weight="600">SIRENS STUDIO</text>
+          <!-- Divider -->
+          <line x1="120" y1="62" x2="300" y2="62" stroke="#1e3922" stroke-width="0.5" opacity="0.12"/>
+          <!-- Hint line -->
+          <text x="120" y="78" font-family="'Inter','Segoe UI',system-ui,sans-serif"
+                font-size="10.5" fill="#6b6560" opacity="0.5">
+            Press <tspan font-weight="700" fill="#c25e07">⌘ K</tspan>
+            to open the SmartBar and choose a diagram template
+          </text>
+        </svg>
       </div>`;
     if (typeof onSuccess === 'function') onSuccess([]);
     return;

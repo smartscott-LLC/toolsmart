@@ -461,13 +461,22 @@ html, body {
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 16px;
-  opacity: 0.5;
   pointer-events: none;
+  user-select: none;
 }
 
-.preview-empty-icon { font-size: 3rem; }
-.preview-empty-text { font-size: 0.875rem; color: var(--text-muted); }
+.preview-watermark {
+  width: min(420px, 85%);
+  height: auto;
+  opacity: 0.85;
+  /* Subtle breathe animation */
+  animation: watermark-breathe 6s ease-in-out infinite;
+}
+
+@keyframes watermark-breathe {
+  0%, 100% { opacity: 0.72; transform: scale(1); }
+  50%       { opacity: 0.92; transform: scale(1.015); }
+}
 
 .render-error {
   margin: 16px;

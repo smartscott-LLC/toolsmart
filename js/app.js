@@ -30,6 +30,7 @@ const state = {
   currentFile: null,        // name without extension, or null
   isDirty: false,
   vaultAvailable: false,
+  isWelcomeSeed: false,     // true while the untouched starter seed is showing
 };
 
 /* ── DOM refs ────────────────────────────────────────────────── */
@@ -56,19 +57,49 @@ function initEditor() {
   if (saved) {
     editor.setValue(saved);
   } else {
-    // Default welcome diagram
-    editor.setValue(`graph TD
-    A([🚀 Welcome to Sirens]) --> B{Choose your next step}
-    B -->|📄 New diagram| C[Clear editor & start]
-    B -->|💡 Browse snippets| D[Press Cmd+K]
-    B -->|🗃️ Open vault| E[Click Vault button]
-    C --> F([Happy diagramming!])
-    D --> F
-    E --> F`);
+    // Starter Seed — an elegant welcome flowchart shown on first visit.
+    // Uses classDef to apply the brand palette so the diagram is immediately on-brand.
+    state.isWelcomeSeed = true;
+    editor.setValue(
+`%%{ init: { 'theme': 'base', 'themeVariables': {
+  'primaryColor': '#1e3922', 'primaryTextColor': '#ddd0b0',
+  'primaryBorderColor': '#c25e07', 'lineColor': '#7b2f00',
+  'secondaryColor': '#e1d9c4', 'background': '#e1d9c4'
+}}}%%
+graph TD
+    classDef evergreen fill:#1e3922,stroke:#c25e07,stroke-width:2px,color:#ddd0b0
+    classDef caramel   fill:#c25e07,stroke:#7b2f00,stroke-width:2px,color:#fff
+    classDef bone      fill:#e1d9c4,stroke:#c8bea4,stroke-width:1px,color:#1e3922
+    classDef muted     fill:#ddd0b0,stroke:#c8bea4,stroke-width:1px,color:#6b6560,stroke-dasharray:4 4
+
+    W(["⬡  ToolSmart · Sirens Studio"]):::evergreen
+
+    W --> SM["⚡ SmartBar — press Cmd+K\nChoose from 12 diagram templates"]:::caramel
+    W --> ED["✏️  Scripting Bay\nType Mermaid syntax · live hints appear"]:::bone
+    W --> VT["🔒 Vault\nDiagrams saved locally — no server"]:::bone
+    W --> TH["🎨 Style Studio\n4 themes · custom CSS injector"]:::muted
+
+    SM --> GO(["Start creating — the canvas is yours"]):::evergreen
+    ED --> GO
+    VT --> GO
+    TH --> GO`
+    );
   }
 }
 
 function handleEditorChange(value) {
+  // While the untouched Starter Seed is showing, don't mark it dirty or persist it.
+  // The moment the user edits anything, clear the flag and behave normally.
+  if (state.isWelcomeSeed) {
+    state.isWelcomeSeed = false;
+    // Render it but do not save or set dirty
+    renderDiagram(value, {
+      onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+      onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
+    });
+    return;
+  }
+
   localStorage.setItem('sirens-editor-content', value);
   state.isDirty = true;
   updateDirtyIndicator();
