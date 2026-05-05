@@ -1,0 +1,42 @@
+{
+  "name": "Sirens — Mermaid Studio",
+  "short_name": "Sirens",
+  "description": "A local-first progressive web app for creating and managing Mermaid diagrams professionally.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "theme_color": "#1e3922",
+  "background_color": "#e1d9c4",
+  "lang": "en",
+  "categories": ["productivity", "developer tools"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Diagram",
+      "description": "Create a new Mermaid diagram",
+      "url": "/?action=new",
+      "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
+    }
+  ],
+  "prefer_related_applications": false
+}
