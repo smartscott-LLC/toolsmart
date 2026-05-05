@@ -33,6 +33,8 @@ let _onNodeClick = null;
 let _lastSource = '';
 
 let _mermaidCounter = 0;
+let _renderGeneration = 0;  // incremented on every render; used to discard stale results
+let _lastSvg = '';           // last successfully rendered SVG
 
 /* ── Mermaid initialisation ─────────────────────────────────── */
 
@@ -84,7 +86,13 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
 
   _lastSource = source;
   const trimmed = source.trim();
+
+  // Track this render; any older in-flight render whose result arrives later will be discarded.
+  _renderGeneration++;
+  const thisGeneration = _renderGeneration;
+
   if (!trimmed) {
+    _lastSvg = '';
     _canvas.innerHTML = `
       <div class="preview-empty">
         <svg class="preview-watermark" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -122,6 +130,10 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
   try {
     const { svg } = await window.mermaid.render(id, trimmed);
 
+    // Discard result if a newer render has already been requested.
+    if (thisGeneration !== _renderGeneration) return;
+
+    _lastSvg = svg;
     _canvas.innerHTML = svg;
     const svgEl = _canvas.querySelector('svg');
     if (svgEl) {
@@ -134,8 +146,17 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
 
     if (typeof onSuccess === 'function') onSuccess([]);
   } catch (err) {
+    // Discard result if a newer render has already been requested.
+    if (thisGeneration !== _renderGeneration) return;
+
     const errors = _parseMermaidError(err, trimmed);
-    _canvas.innerHTML = `<div class="render-error">${_escapeHtml(err.message || String(err))}</div>`;
+
+    // Preserve the last successful diagram rather than blanking the canvas.
+    // The error is surfaced via the status bar and editor gutter.
+    if (!_lastSvg) {
+      _canvas.innerHTML = `<div class="render-error">${_escapeHtml(err.message || String(err))}</div>`;
+    }
+
     if (typeof onError === 'function') onError(errors);
   }
 }

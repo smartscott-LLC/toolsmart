@@ -273,9 +273,12 @@ export function createEditor(container, { onChange, onDiagramType, debounceMs = 
     }, 200);
   });
 
-  // ── Debounced onChange ─────────────────────────────────────
+  // ── Debounced onChange — only fires for genuine user edits ───
+  // CodeMirror sets change.origin = 'setValue' for programmatic cm.setValue() calls.
+  // Skipping those prevents the debounce from treating initial loads as user edits.
   let changeTimeout = null;
-  cm.on('change', (editor) => {
+  cm.on('change', (editor, change) => {
+    if (change.origin === 'setValue') return; // programmatic change, ignore
     clearTimeout(changeTimeout);
     changeTimeout = setTimeout(() => {
       const value = editor.getValue();
@@ -322,5 +325,17 @@ export function createEditor(container, { onChange, onDiagramType, debounceMs = 
     cm.focus();
   }
 
-  return { cm, setErrors, setValue, getValue, goToLine };
+  /** Undo the last edit and refocus the editor */
+  function undo() {
+    cm.undo();
+    cm.focus();
+  }
+
+  /** Redo the last undone edit and refocus the editor */
+  function redo() {
+    cm.redo();
+    cm.focus();
+  }
+
+  return { cm, setErrors, setValue, getValue, goToLine, undo, redo };
 }
