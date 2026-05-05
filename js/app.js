@@ -13,10 +13,11 @@ import { initSmartBar, openSmartBar,
          closeSmartBar }                       from './smartbar.js';
 import { initVault, isVaultAvailable,
          listFiles, saveFile, loadFile,
-         deleteFile, getStorageEstimate,
+         deleteFile, renameFile, getStorageEstimate,
          getAllocationCap, setAllocationCap,
          formatBytes, getLastOpenedFile,
-         setLastOpenedFile }                   from './vault.js';
+         setLastOpenedFile, getRecentFiles,
+         addRecentFile, removeRecentFile }        from './vault.js';
 import { APP_THEMES, MERMAID_THEMES,
          applyAppTheme, applyMermaidTheme,
          applyCustomCss, restoreThemeSettings,
@@ -140,11 +141,13 @@ function initPreviewPanel() {
 
 function initSmartBarPanel() {
   initSmartBar({
-    overlay:   $('smartbar-overlay'),
-    input:     $('smartbar-input'),
-    results:   $('smartbar-results'),
-    onAction:  handleSmartBarAction,
-    onSnippet: handleSnippetInsert,
+    overlay:        $('smartbar-overlay'),
+    input:          $('smartbar-input'),
+    results:        $('smartbar-results'),
+    onAction:       handleSmartBarAction,
+    onSnippet:      handleSnippetInsert,
+    getRecentFiles: () => (state.vaultAvailable ? getRecentFiles() : []),
+    onRecentFile:   (name) => openDiagramFromVault(name),
   });
 }
 
@@ -225,8 +228,9 @@ function renderVaultFileList(files) {
       <span class="vault-file-size">${formatBytes(f.size)}</span>
       <span class="vault-file-date">${_formatDate(f.lastModified)}</span>
       <span class="vault-file-actions">
-        <button class="vault-file-btn is-open" data-action="open" data-name="${_escHtml(f.name)}">Open</button>
-        <button class="vault-file-btn" data-action="delete" data-name="${_escHtml(f.name)}">Delete</button>
+        <button class="vault-file-btn is-open" data-action="open"   data-name="${_escHtml(f.name)}">Open</button>
+        <button class="vault-file-btn"          data-action="rename" data-name="${_escHtml(f.name)}">Rename</button>
+        <button class="vault-file-btn"          data-action="delete" data-name="${_escHtml(f.name)}">Delete</button>
       </span>
     </div>
   `).join('');
@@ -236,12 +240,18 @@ function renderVaultFileList(files) {
       e.stopPropagation();
       const name = btn.dataset.name;
       const action = btn.dataset.action;
+
       if (action === 'open') {
         await openDiagramFromVault(name);
         closeVaultModal();
+
+      } else if (action === 'rename') {
+        _startVaultRename(btn.closest('.vault-file-item'), name);
+
       } else if (action === 'delete') {
         if (confirm(`Delete "${name}"? This cannot be undone.`)) {
           await deleteFile(name);
+          removeRecentFile(name);
           if (state.currentFile === name) {
             state.currentFile = null;
             updateFileNameInput('');
@@ -253,6 +263,56 @@ function renderVaultFileList(files) {
   });
 }
 
+/**
+ * Replace the file-name span in a vault row with an inline rename input.
+ * @param {HTMLElement} row
+ * @param {string} currentName
+ */
+function _startVaultRename(row, currentName) {
+  const nameSpan = row.querySelector('.vault-file-name');
+  if (!nameSpan || row.querySelector('.vault-rename-input')) return; // already editing
+
+  const originalText = nameSpan.textContent;
+  nameSpan.style.display = 'none';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'vault-rename-input';
+  input.value = currentName;
+  input.setAttribute('aria-label', 'Rename diagram');
+  row.insertBefore(input, nameSpan.nextSibling);
+  input.select();
+
+  async function commitRename() {
+    const newName = input.value.trim();
+    input.remove();
+    nameSpan.style.display = '';
+    if (!newName || newName === currentName) return;
+    try {
+      await renameFile(currentName, newName);
+      // Update recents and current-file state if needed
+      removeRecentFile(currentName);
+      addRecentFile(newName);
+      if (state.currentFile === currentName) {
+        state.currentFile = newName;
+        updateFileNameInput(newName);
+        setLastOpenedFile(newName);
+      }
+      updateStatus('ok', `Renamed "${currentName}" → "${newName}"`);
+      await refreshVaultModal();
+    } catch (err) {
+      alert(`Rename failed: ${err.message}`);
+      await refreshVaultModal();
+    }
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+    if (e.key === 'Escape') { input.remove(); nameSpan.style.display = ''; }
+  });
+  input.addEventListener('blur', commitRename);
+}
+
 async function openDiagramFromVault(name) {
   try {
     const content = await loadFile(name);
@@ -260,6 +320,7 @@ async function openDiagramFromVault(name) {
     state.isDirty = false;
     updateFileNameInput(name);
     setLastOpenedFile(name);
+    addRecentFile(name);
     editor.setValue(content);
     handleEditorChange(content);
     updateDirtyIndicator();
@@ -634,6 +695,7 @@ async function boot() {
   initNavbarButtons();
   initKeyboardShortcuts();
   initPwaInstall();
+  initDragDrop();
 
   // Sync sidebar UI with restored settings
   syncStyleSidebarState(savedThemeSettings);
@@ -675,6 +737,57 @@ async function boot() {
     // Replace URL without the query string to keep the address bar clean
     history.replaceState(null, '', window.location.pathname);
   }
+}
+
+/* ── Drag-and-Drop Import ────────────────────────────────────── */
+
+function initDragDrop() {
+  const overlay = $('drop-overlay');
+
+  // Prevent browser from navigating to the file on drop
+  document.addEventListener('dragover', (e) => {
+    if ([...e.dataTransfer.types].includes('Files')) {
+      e.preventDefault();
+      if (overlay) overlay.classList.add('active');
+    }
+  });
+
+  document.addEventListener('dragleave', (e) => {
+    // Only hide overlay when the pointer truly leaves the window
+    if (!e.relatedTarget && overlay) {
+      overlay.classList.remove('active');
+    }
+  });
+
+  document.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    if (overlay) overlay.classList.remove('active');
+
+    const files = [...e.dataTransfer.files];
+    const mmdFile = files.find(
+      (f) => f.name.endsWith('.mmd') || f.name.endsWith('.txt') || f.type === 'text/plain'
+    );
+    if (!mmdFile) {
+      updateStatus('warning', 'Drop a .mmd or .txt file to open it');
+      return;
+    }
+
+    if (state.isDirty && !confirm('Discard unsaved changes and open the dropped file?')) return;
+
+    try {
+      const text = await mmdFile.text();
+      const nameWithoutExt = mmdFile.name.replace(/\.(mmd|txt)$/i, '');
+      state.currentFile = null;           // dropped files aren't vault-managed yet
+      state.isDirty = false;
+      updateFileNameInput(nameWithoutExt);
+      editor.setValue(text);
+      handleEditorChange(text);
+      updateDirtyIndicator();
+      updateStatus('ok', `Opened "${mmdFile.name}" from disk`);
+    } catch (err) {
+      updateStatus('error', `Drop failed: ${err.message}`);
+    }
+  });
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */

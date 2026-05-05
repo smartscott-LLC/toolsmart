@@ -39,14 +39,16 @@ Sirens is part of the **ToolSmart** suite — a collection of uniquely designed 
 - **Export** — SVG (vector), PNG (3× retina-quality raster), or `.mmd` raw source
 
 ### SmartBar (Command Palette — `⌘K` / `Ctrl+K`)
-- Fuzzy search across all actions and 13 built-in diagram snippets
+- **Recent Files** shown at the top — open any of the last 5 diagrams with a single keystroke
+- Fuzzy search across recent files, all actions, and 13 built-in diagram snippets
 - Keyboard-navigable (`↑↓` + `Enter`) with mouse fallback
 - Actions: New diagram, Save, Open Vault, Export (SVG/PNG/mmd), Zoom, Reset, Style Studio
 
 ### Vault (OPFS Local Storage)
 - Diagrams saved to the browser's **Origin Private File System** — completely private, no server involved
 - File list with last-modified dates and sizes
-- One-click open/delete; auto-restores the last opened file on launch
+- One-click open, **inline rename** (click Rename → type new name → Enter), and delete
+- Auto-restores the last opened file on launch
 - Configurable soft allocation cap (100 MB – 2 GB slider)
 - Storage usage bar and quota display
 
@@ -59,6 +61,7 @@ Sirens is part of the **ToolSmart** suite — a collection of uniquely designed 
 - Fully installable as a desktop or mobile app
 - Service worker caches the entire app shell for true offline use
 - All vendor libraries (Bulma, CodeMirror, Mermaid) are vendored locally — no CDN dependency at runtime
+- **Drag-and-drop import** — drop a `.mmd` or `.txt` file from the desktop onto the app to open it instantly
 
 ---
 
@@ -138,6 +141,9 @@ toolsmart/
 | `Alt+Click` | Add cursor at click position |
 | `←` / `→` *(on resize handle)* | Adjust editor/preview split (20 px steps) |
 | `Shift+←` / `Shift+→` *(on resize handle)* | Adjust split in 80 px steps |
+| Drag `.mmd` file onto window | Open the file in the editor |
+| `Enter` *(in Vault rename input)* | Commit rename |
+| `Escape` *(in Vault rename input)* | Cancel rename |
 
 ---
 

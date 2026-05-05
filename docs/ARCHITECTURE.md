@@ -122,6 +122,9 @@ All public functions are `async` and throw on failure (callers in `app.js` wrap 
 | `requestPersistence()` | Requests durable OPFS storage via `navigator.storage.persist()` |
 | `getAllocationCap()` / `setAllocationCap(mb)` | Read/write the soft cap from `localStorage` |
 | `getLastOpenedFile()` / `setLastOpenedFile(name)` | Read/write the last-opened file name from `localStorage` |
+| `getRecentFiles()` | Returns up to 5 most-recently-opened file names (array, most-recent first) |
+| `addRecentFile(name)` | Pushes a name to the top of the recents list (deduplicates, trims to 5) |
+| `removeRecentFile(name)` | Removes a specific name from the recents list (called on delete/rename) |
 | `formatBytes(bytes)` | Human-readable byte size string |
 
 **`sanitiseName(name)`** replaces `/\:*?"<>|` with `_` to ensure the name is safe as an OPFS file name.
@@ -142,7 +145,17 @@ There is no reactive state system. All state lives in one of two places:
    };
    ```
 
-2. **`localStorage`** — persisted across sessions (keys listed in README)
+2. **`localStorage`** — persisted across sessions:
+
+   | Key | Contents |
+   |---|---|
+   | `sirens-editor-content` | Current editor source (auto-saved on every change) |
+   | `sirens-last-file` | Name of the last opened vault file |
+   | `sirens-recent-files` | JSON array of up to 5 recently opened file names |
+   | `sirens-app-theme` | Active app theme id |
+   | `sirens-mermaid-theme` | Active Mermaid diagram theme |
+   | `sirens-custom-css` | Custom CSS entered in the CSS Injector |
+   | `sirens-vault-allocation-mb` | Soft allocation cap (in MB) |
 
 UI is updated synchronously by direct DOM manipulation whenever state changes.
 
@@ -154,7 +167,7 @@ UI is updated synchronously by direct DOM manipulation whenever state changes.
 
 | Cache | Strategy | Contents |
 |---|---|---|
-| `sirens-v1` | Cache-first | All same-origin app shell files |
+| `sirens-v2` | Cache-first | All same-origin app shell files |
 | `sirens-cdn-v1` | Network-first with cache fallback | CDN resources (jsdelivr, cdnjs, unpkg) |
 
 The app shell cache is pre-populated during `install` via `cache.addAll(APP_SHELL)`. Any fetch for a same-origin URL that is not yet cached is fetched from the network and added to the cache on the fly.
