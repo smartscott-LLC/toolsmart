@@ -444,6 +444,20 @@ function initResizeHandle() {
     dragging = false;
     handle.classList.remove('dragging');
   });
+
+  // Keyboard accessibility: arrow keys adjust panel width in 20px steps
+  handle.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? 80 : 20;
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const newWidth = Math.max(240, editorPanel.offsetWidth - step);
+      editorPanel.style.width = `${newWidth}px`;
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const newWidth = Math.min(appBody.offsetWidth - 240, editorPanel.offsetWidth + step);
+      editorPanel.style.width = `${newWidth}px`;
+    }
+  });
 }
 
 /* ── PWA Install Banner ──────────────────────────────────────── */
@@ -520,7 +534,7 @@ function getFileName() {
 
 function initKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    const isMac = navigator.platform.startsWith('Mac');
+    const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
     const ctrl  = isMac ? e.metaKey : e.ctrlKey;
 
     if (ctrl && e.key === 'k') {
@@ -653,6 +667,14 @@ async function boot() {
   }
 
   updateStatus('ok', state.vaultAvailable ? 'Vault ready — all data is local' : 'Running without Vault (OPFS unavailable)');
+
+  // Handle URL action parameters (e.g. PWA shortcut: ?action=new)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('action') === 'new') {
+    newDiagram();
+    // Replace URL without the query string to keep the address bar clean
+    history.replaceState(null, '', window.location.pathname);
+  }
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */

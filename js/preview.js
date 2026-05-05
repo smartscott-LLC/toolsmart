@@ -497,6 +497,10 @@ export function exportPng(filename = 'diagram.png') {
   const url = URL.createObjectURL(svgBlob);
 
   const img = new Image();
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    console.error('[Sirens] exportPng: failed to load SVG as image');
+  };
   img.onload = () => {
     const canvas = document.createElement('canvas');
     const scale = 3; // 3× for high-DPI
