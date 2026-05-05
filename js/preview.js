@@ -57,18 +57,22 @@ export function initMermaid(theme = 'base') {
 
 function getBrandVars() {
   return {
-    primaryColor:       '#1e3922',
-    primaryTextColor:   '#ddd0b0',
-    primaryBorderColor: '#c25e07',
-    lineColor:          '#7b2f00',
-    secondaryColor:     '#e1d9c4',
-    tertiaryColor:      '#ddd0b0',
-    background:         '#e1d9c4',
-    mainBkg:            '#1e3922',
-    nodeBorder:         '#c25e07',
-    clusterBkg:         '#ddd0b080',
-    edgeLabelBackground:'#e1d9c4',
-    titleColor:         '#1e3922',
+    primaryColor:        '#1e3922',
+    primaryTextColor:    '#ddd0b0',
+    primaryBorderColor:  '#c25e07',
+    lineColor:           '#7b2f00',
+    secondaryColor:      '#e1d9c4',
+    secondaryTextColor:  '#1e3922',
+    tertiaryColor:       '#ddd0b0',
+    tertiaryTextColor:   '#1e3922',
+    background:          '#e1d9c4',
+    mainBkg:             '#1e3922',
+    nodeBorder:          '#c25e07',
+    clusterBkg:          '#ddd0b080',
+    edgeLabelBackground: '#e1d9c4',
+    titleColor:          '#ddd0b0',
+    noteBkgColor:        '#e1d9c4',
+    noteTextColor:       '#1e3922',
   };
 }
 
@@ -139,9 +143,11 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
     _canvas.innerHTML = svg;
     const svgEl = _canvas.querySelector('svg');
     if (svgEl) {
+      // Override mermaid's inline max-width restriction so the SVG renders at its
+      // natural pixel size.  The width/height attributes are intentionally kept so
+      // the absolutely-positioned canvas has an intrinsic size; without them the
+      // SVG collapses to zero dimensions and becomes invisible.
       svgEl.style.maxWidth = 'none';
-      svgEl.removeAttribute('width');
-      svgEl.removeAttribute('height');
       // Attach click-to-locate handlers
       _attachNodeClickHandlers(svgEl, trimmed);
     }

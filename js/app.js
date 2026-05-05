@@ -63,13 +63,14 @@ function initEditor() {
 `%%{ init: { 'theme': 'base', 'themeVariables': {
   'primaryColor': '#1e3922', 'primaryTextColor': '#ddd0b0',
   'primaryBorderColor': '#c25e07', 'lineColor': '#7b2f00',
-  'secondaryColor': '#e1d9c4', 'background': '#e1d9c4'
+  'secondaryColor': '#e1d9c4', 'secondaryTextColor': '#1e3922',
+  'background': '#e1d9c4', 'titleColor': '#ddd0b0'
 }}}%%
 graph TD
     classDef evergreen fill:#1e3922,stroke:#c25e07,stroke-width:2px,color:#ddd0b0
     classDef caramel   fill:#c25e07,stroke:#7b2f00,stroke-width:2px,color:#fff
     classDef bone      fill:#e1d9c4,stroke:#c8bea4,stroke-width:1px,color:#1e3922
-    classDef muted     fill:#ddd0b0,stroke:#c8bea4,stroke-width:1px,color:#6b6560,stroke-dasharray:4 4
+    classDef muted     fill:#ddd0b0,stroke:#c8bea4,stroke-width:1px,color:#1e3922,stroke-dasharray:4 4
 
     W(["⬡  ToolSmart · Sirens Studio"]):::evergreen
 

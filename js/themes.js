@@ -50,18 +50,22 @@ export const MERMAID_THEMES = [
 
 /** Brand-colored Mermaid init variables for 'base' theme */
 const BRAND_MERMAID_VARS = {
-  primaryColor:       '#1e3922',
-  primaryTextColor:   '#ddd0b0',
-  primaryBorderColor: '#c25e07',
-  lineColor:          '#7b2f00',
-  secondaryColor:     '#e1d9c4',
-  tertiaryColor:      '#ddd0b0',
-  background:         '#e1d9c4',
-  mainBkg:            '#1e3922',
-  nodeBorder:         '#c25e07',
-  clusterBkg:         '#ddd0b080',
-  titleColor:         '#1e3922',
-  edgeLabelBackground:'#e1d9c4',
+  primaryColor:        '#1e3922',
+  primaryTextColor:    '#ddd0b0',
+  primaryBorderColor:  '#c25e07',
+  lineColor:           '#7b2f00',
+  secondaryColor:      '#e1d9c4',
+  secondaryTextColor:  '#1e3922',
+  tertiaryColor:       '#ddd0b0',
+  tertiaryTextColor:   '#1e3922',
+  background:          '#e1d9c4',
+  mainBkg:             '#1e3922',
+  nodeBorder:          '#c25e07',
+  clusterBkg:          '#ddd0b080',
+  titleColor:          '#ddd0b0',
+  edgeLabelBackground: '#e1d9c4',
+  noteBkgColor:        '#e1d9c4',
+  noteTextColor:       '#1e3922',
 };
 
 let _currentAppTheme = 'corporate';
