@@ -809,7 +809,7 @@ function initDragDrop() {
       const text = await mmdFile.text();
       const nameWithoutExt = mmdFile.name.replace(/\.(mmd|txt)$/i, '');
       state.currentFile = null;           // dropped files aren't vault-managed yet
-      state.isDirty = true;
+      state.isDirty = false;              // content hasn't been modified yet
       updateFileNameInput(nameWithoutExt);
       editor.setValue(text);
       // Persist and render directly — setValue won't trigger the debounced onChange.

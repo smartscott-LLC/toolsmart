@@ -92,6 +92,8 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
   const thisGeneration = _renderGeneration;
 
   if (!trimmed) {
+    // Clear the cached SVG so that future errors in the new (empty) session show the
+    // error message rather than the ghost of the previous successful diagram.
     _lastSvg = '';
     _canvas.innerHTML = `
       <div class="preview-empty">
