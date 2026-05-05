@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Sirens — A local-first Mermaid diagram editor. Fast, private, installable." />
+  <meta name="theme-color" content="#1e3922" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sirens" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+
+  <title>Sirens — Mermaid Studio</title>
+
+  <!-- BulmaCSS (semantic, lightweight) -->
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+        crossorigin="anonymous" />
+
+  <!-- CodeMirror 5 — core + addons -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"
+        crossorigin="anonymous" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css"
+        crossorigin="anonymous" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="css/app.css" />
+
+  <!-- Inter font (optional, falls back to system-ui) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        crossorigin="anonymous" />
+</head>
+
+<body>
+<!-- ══════════════════════════════════════════════════════════
+     App Layout
+     ══════════════════════════════════════════════════════════ -->
+<div class="app-layout">
+
+  <!-- ── Navbar ──────────────────────────────────────────── -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+
+    <div class="navbar-brand">
+      <img src="icons/icon.svg" alt="Sirens logo" class="navbar-logo" />
+      <span class="navbar-title">Siren<span>s</span></span>
+    </div>
+
+    <div class="navbar-divider"></div>
+
+    <input
+      id="file-name-input"
+      class="file-name-input"
+      type="text"
+      value="untitled"
+      placeholder="diagram name"
+      aria-label="Current file name"
+      spellcheck="false"
+    />
+    <span id="dirty-indicator" style="color:var(--burnt-caramel);font-size:1.1rem;line-height:1;" title="Unsaved changes"></span>
+
+    <div class="navbar-spacer"></div>
+
+    <button id="btn-new" class="nav-btn" title="New diagram (Ctrl+N)" data-tooltip="New diagram">
+      📄 New <kbd>⌃N</kbd>
+    </button>
+
+    <button id="btn-save" class="nav-btn" title="Save to Vault (Ctrl+S)" data-tooltip="Save to Vault">
+      💾 Save <kbd>⌃S</kbd>
+    </button>
+
+    <button id="btn-export" class="nav-btn" title="Export diagram (Ctrl+E)" data-tooltip="Export">
+      ⬇️ Export <kbd>⌃E</kbd>
+    </button>
+
+    <div class="navbar-divider"></div>
+
+    <button id="btn-smartbar" class="nav-btn is-accent" title="Open SmartBar (Cmd+K)">
+      ⚡ SmartBar <kbd>⌘K</kbd>
+    </button>
+
+    <div class="navbar-divider"></div>
+
+    <button id="btn-vault" class="nav-btn" title="Open Vault Dashboard" data-tooltip="Vault Dashboard">
+      🔒 Vault
+    </button>
+
+    <button id="btn-styles" class="nav-btn" title="Toggle Styling Studio" data-tooltip="Styling Studio" aria-pressed="false">
+      🎨 Style
+    </button>
+  </nav>
+
+  <!-- ── App Body ────────────────────────────────────────── -->
+  <div id="app-body" class="app-body">
+
+    <!-- ── Editor Panel ────────────────────────────────── -->
+    <section id="editor-panel" class="editor-panel" aria-label="Scripting Bay — Mermaid editor">
+      <div class="panel-header">
+        <span class="panel-header-tag">Scripting Bay</span>
+        Editor
+        <div class="panel-header-spacer"></div>
+        <span id="diagram-type-badge" class="diagram-type-badge">Mermaid</span>
+      </div>
+      <!-- CodeMirror mounts here -->
+      <div id="editor-container" style="flex:1;overflow:hidden;min-height:0;"></div>
+    </section>
+
+    <!-- ── Resize Handle ───────────────────────────────── -->
+    <div id="resize-handle" class="resize-handle" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Drag to resize panels"></div>
+
+    <!-- ── Preview Panel ───────────────────────────────── -->
+    <section class="preview-panel" aria-label="Living Canvas — Diagram preview">
+      <div class="panel-header">
+        <span class="panel-header-tag">Living Canvas</span>
+        Preview
+        <div class="panel-header-spacer"></div>
+        <div class="preview-controls">
+          <button id="btn-zoom-out"   class="preview-btn" title="Zoom out">－</button>
+          <span   id="zoom-label"     class="zoom-level">100%</span>
+          <button id="btn-zoom-in"    class="preview-btn" title="Zoom in">＋</button>
+          <button id="btn-zoom-reset" class="preview-btn" title="Reset view">⌖</button>
+          <button id="btn-zoom-fit"   class="preview-btn" title="Fit to panel">⊡</button>
+        </div>
+      </div>
+      <div id="preview-viewport">
+        <div id="preview-canvas">
+          <div class="preview-empty">
+            <div class="preview-empty-icon">⬡</div>
+            <div class="preview-empty-text">Your diagram will appear here</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Styling Sidebar ─────────────────────────────── -->
+    <aside id="style-sidebar" class="style-sidebar" aria-label="Styling Studio">
+      <div class="sidebar-content">
+        <div class="sidebar-section-title">Branding Presets</div>
+        <div id="theme-card-grid" class="theme-grid">
+          <!-- Populated by themes.js -->
+        </div>
+
+        <div class="sidebar-section-title">Diagram Theme</div>
+        <select id="mermaid-theme-select" class="mermaid-theme-select" aria-label="Mermaid diagram theme">
+          <!-- Populated by app.js -->
+        </select>
+
+        <div class="sidebar-section-title">CSS Injector</div>
+        <textarea
+          id="css-injector-area"
+          class="css-injector-area"
+          placeholder="/* Custom Bulma-flavored CSS */&#10;.node rect { stroke-width: 2px; }"
+          aria-label="Custom CSS overrides"
+          spellcheck="false"
+        ></textarea>
+        <button id="btn-apply-css" class="sidebar-btn">Apply CSS</button>
+      </div>
+    </aside>
+
+  </div><!-- /app-body -->
+
+  <!-- ── Status Bar ──────────────────────────────────────── -->
+  <footer class="status-bar" role="status" aria-live="polite">
+    <span class="status-item">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">Initialising…</span>
+    </span>
+    <span class="status-spacer"></span>
+    <span id="status-storage" class="status-item">Local-first · No server</span>
+    <span class="status-item">🔒 OPFS Vault</span>
+    <span class="status-item">Sirens v1.0</span>
+  </footer>
+
+</div><!-- /app-layout -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SmartBar Overlay (Cmd+K)
+     ══════════════════════════════════════════════════════════ -->
+<div id="smartbar-overlay" class="smartbar-overlay" role="dialog" aria-modal="true" aria-label="SmartBar command palette">
+  <div class="smartbar-container">
+    <div class="smartbar-input-row">
+      <span class="smartbar-icon">⚡</span>
+      <input
+        id="smartbar-input"
+        type="text"
+        placeholder="Search snippets, actions, files…"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Command palette search"
+      />
+      <span class="smartbar-hint">ESC to close</span>
+    </div>
+    <div id="smartbar-results" class="smartbar-results" role="listbox" aria-label="Results"></div>
+    <div class="smartbar-footer">
+      <span><kbd>↑↓</kbd> Navigate</span>
+      <span><kbd>↵</kbd> Select</span>
+      <span><kbd>ESC</kbd> Close</span>
+      <span style="margin-left:auto;color:var(--accent);font-weight:600;">SmartBar Logic Hub</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     Vault Modal
+     ══════════════════════════════════════════════════════════ -->
+<div id="vault-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Vault Dashboard">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span style="font-size:1.3rem;">🔒</span>
+      <span class="modal-title">Vault Dashboard</span>
+      <button id="btn-close-vault" class="modal-close" aria-label="Close vault">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Privacy banner -->
+      <div class="vault-privacy-banner">
+        <span class="vault-lock-icon">🛡️</span>
+        <div class="vault-privacy-text">
+          <strong>Privacy Lock — All data is local</strong>
+          Your diagrams are stored exclusively in the browser's Origin Private File System (OPFS).
+          No data ever leaves your device.
+        </div>
+      </div>
+
+      <!-- Stats grid -->
+      <div class="vault-stats-grid">
+        <div class="vault-stat">
+          <div id="vault-stat-files" class="vault-stat-value">—</div>
+          <div class="vault-stat-label">Saved Files</div>
+        </div>
+        <div class="vault-stat">
+          <div id="vault-stat-used" class="vault-stat-value">—</div>
+          <div class="vault-stat-label">Storage Used</div>
+        </div>
+        <div class="vault-stat">
+          <div id="vault-stat-quota" class="vault-stat-value">—</div>
+          <div class="vault-stat-label">Total Quota</div>
+        </div>
+      </div>
+
+      <!-- Usage bar -->
+      <div class="vault-usage-bar">
+        <div id="vault-usage-fill" class="vault-usage-fill" style="width:0%"></div>
+      </div>
+
+      <!-- Allocation slider -->
+      <div class="vault-allocation-label">
+        <span>Allocation Cap</span>
+        <span id="vault-allocation-value">500 MB</span>
+      </div>
+      <input
+        id="vault-allocation-slider"
+        class="vault-slider"
+        type="range"
+        min="100"
+        max="2048"
+        step="100"
+        value="500"
+        aria-label="Vault allocation cap in MB"
+      />
+      <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:16px;">
+        Drag to set your reserved OPFS allocation (100 MB – 2 GB). This is a soft guideline;
+        the browser manages actual quota.
+      </p>
+
+      <!-- File list -->
+      <div class="sidebar-section-title" style="margin-top:0;">Saved Diagrams</div>
+      <div id="vault-file-list" class="vault-file-list">
+        <div class="vault-empty">Loading…</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="btn-vault-new"  class="btn btn-secondary">📄 New Diagram</button>
+      <button id="btn-vault-save" class="btn btn-primary">💾 Save Current</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     Export Modal
+     ══════════════════════════════════════════════════════════ -->
+<div id="export-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Export diagram">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span style="font-size:1.3rem;">⬇️</span>
+      <span class="modal-title">Export Diagram</span>
+      <button id="btn-close-export" class="modal-close" aria-label="Close export dialog">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p style="margin-bottom:16px;color:var(--text-muted);font-size:0.875rem;">
+        Choose your export format. All exports are generated locally — no server required.
+      </p>
+      <div class="export-options">
+        <div class="export-card selected" data-format="svg">
+          <div class="export-card-icon">🖼️</div>
+          <div class="export-card-label">SVG</div>
+          <div class="export-card-desc">Scalable vector, ideal for web &amp; print</div>
+        </div>
+        <div class="export-card" data-format="png">
+          <div class="export-card-icon">🖼️</div>
+          <div class="export-card-label">PNG (3×)</div>
+          <div class="export-card-desc">High-resolution raster, 3× retina quality</div>
+        </div>
+        <div class="export-card" data-format="mmd">
+          <div class="export-card-icon">📝</div>
+          <div class="export-card-label">Mermaid (.mmd)</div>
+          <div class="export-card-desc">Raw source for version control or sharing</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="btn-do-export" class="btn btn-primary">⬇️ Download</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     PWA Install Banner
+     ══════════════════════════════════════════════════════════ -->
+<div id="install-banner" class="install-banner" role="complementary" aria-label="Install app">
+  <div class="install-banner-text">
+    <strong>Install Sirens</strong>
+    Get the full desktop app experience
+  </div>
+  <button id="btn-install-pwa" class="nav-btn is-accent">Install App</button>
+  <button id="btn-close-install-banner" class="install-banner-close" aria-label="Dismiss install prompt">✕</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     Scripts
+     Load order matters:
+     1. CodeMirror (global)
+     2. CodeMirror addons
+     3. Mermaid (global, ESM)
+     4. App modules (ESM)
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- CodeMirror 5 core -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"
+        crossorigin="anonymous"></script>
+
+<!-- CodeMirror addons -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/placeholder.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"
+        crossorigin="anonymous"></script>
+
+<!-- CodeMirror: enable active line highlighting via option -->
+<script>
+  // Apply styleActiveLine once CodeMirror is loaded
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.CodeMirror) {
+      CodeMirror.defaults.styleActiveLine = true;
+    }
+  });
+</script>
+
+<!-- Mermaid 10 — loaded as a global via IIFE-compatible build -->
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  window.mermaid = mermaid;
+  // Signal that mermaid is ready
+  window.dispatchEvent(new Event('mermaid-ready'));
+</script>
+
+<!-- App entry point (ES module) — defer until mermaid is ready -->
+<script type="module">
+  function loadApp() {
+    import('./js/app.js').catch((err) => {
+      console.error('[Sirens] Failed to load app module:', err);
+    });
+  }
+
+  if (window.mermaid) {
+    loadApp();
+  } else {
+    window.addEventListener('mermaid-ready', loadApp, { once: true });
+    // Fallback after 3s even if mermaid event never fires
+    setTimeout(loadApp, 3000);
+  }
+</script>
+
+</body>
+</html>
