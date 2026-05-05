@@ -595,7 +595,7 @@ function getFileName() {
 
 function initKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+    const isMac = /Mac/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
     const ctrl  = isMac ? e.metaKey : e.ctrlKey;
 
     if (ctrl && e.key === 'k') {
