@@ -161,17 +161,13 @@ function _renderGroup(label, items, type) {
     el.className = 'smartbar-item';
     el.dataset.index = idx;
 
-    const isSnippet = type === 'snippet';
-    const tag = isSnippet ? item.tag : item.tag;
-    const description = isSnippet ? item.description : item.description;
-
     el.innerHTML = `
       <span class="smartbar-item-icon">${_escapeHtml(item.icon)}</span>
       <span class="smartbar-item-info">
         <span class="smartbar-item-label">${_escapeHtml(item.label)}</span>
-        <span class="smartbar-item-desc">${_escapeHtml(description)}</span>
+        <span class="smartbar-item-desc">${_escapeHtml(item.description)}</span>
       </span>
-      <span class="smartbar-item-tag">${_escapeHtml(tag)}</span>
+      <span class="smartbar-item-tag">${_escapeHtml(item.tag)}</span>
     `;
 
     el.addEventListener('click', () => {
