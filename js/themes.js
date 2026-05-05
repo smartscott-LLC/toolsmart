@@ -111,8 +111,6 @@ export function applyMermaidTheme(mermaidTheme, rerender) {
     });
     if (typeof rerender === 'function') rerender();
   }
-
-  localStorage.setItem('sirens-mermaid-theme', mermaidTheme);
 }
 
 /**

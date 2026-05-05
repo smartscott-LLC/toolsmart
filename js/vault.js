@@ -163,6 +163,45 @@ export function setLastOpenedFile(name) {
   }
 }
 
+// ─── Recent Files ────────────────────────────────────────────
+
+const RECENT_KEY = 'sirens-recent-files';
+const RECENT_MAX = 5;
+
+/**
+ * Get the list of recently opened file names (most-recent first).
+ * @returns {string[]}
+ */
+export function getRecentFiles() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Push a file name to the top of the recents list.
+ * Deduplicates and trims to RECENT_MAX entries.
+ * @param {string} name
+ */
+export function addRecentFile(name) {
+  if (!name) return;
+  const list = getRecentFiles().filter((n) => n !== name);
+  list.unshift(name);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, RECENT_MAX)));
+}
+
+/**
+ * Remove a file name from the recents list (call after deletion).
+ * @param {string} name
+ */
+export function removeRecentFile(name) {
+  if (!name) return;
+  const list = getRecentFiles().filter((n) => n !== name);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+
 // ─── Helpers ────────────────────────────────────────────────
 
 function sanitiseName(name) {

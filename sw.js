@@ -1,7 +1,7 @@
 /* ============================================================
    Sirens — Service Worker  (Cache-first for app shell)
    ============================================================ */
-const CACHE_NAME = 'sirens-v1';
+const CACHE_NAME = 'sirens-v2';
 
 // App-shell files that live in this origin
 const APP_SHELL = [
@@ -17,6 +17,8 @@ const APP_SHELL = [
   '/js/themes.js',
   '/js/snippets.js',
   '/icons/icon.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   // Vendored libraries (bundled locally for true offline support)
   '/vendor/bulma/bulma.min.css',
   '/vendor/codemirror/codemirror.js',

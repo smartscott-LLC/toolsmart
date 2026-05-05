@@ -1,6 +1,7 @@
 /* ============================================================
    Sirens — SmartBar Module
    Cmd+K command palette:
+   - Recent files (last 5 opened)
    - Snippet insertion
    - File operations (new, open from vault, save)
    - App actions (themes, vault, export)
@@ -37,6 +38,10 @@ let _flatItems = [];
 let _onAction = null;
 /** @type {Function} */
 let _onSnippet = null;
+/** @type {Function|null} — returns string[] of recent file names */
+let _getRecentFiles = null;
+/** @type {Function|null} — called with a file name when a recent item is opened */
+let _onRecentFile = null;
 
 /* ── Initialise ─────────────────────────────────────────────── */
 
@@ -47,14 +52,18 @@ let _onSnippet = null;
  *   results: HTMLElement,
  *   onAction: (actionId: string) => void,
  *   onSnippet: (snippet: object) => void,
+ *   getRecentFiles?: () => string[],
+ *   onRecentFile?: (name: string) => void,
  * }} options
  */
-export function initSmartBar({ overlay, input, results, onAction, onSnippet }) {
+export function initSmartBar({ overlay, input, results, onAction, onSnippet, getRecentFiles, onRecentFile }) {
   _overlay = overlay;
   _input = input;
   _resultsList = results;
   _onAction = onAction;
   _onSnippet = onSnippet;
+  _getRecentFiles = getRecentFiles || null;
+  _onRecentFile = onRecentFile || null;
 
   // Close on overlay backdrop click
   _overlay.addEventListener('click', (e) => {
@@ -130,14 +139,37 @@ function _render(query) {
     : ACTIONS;
 
   if (!query) {
-    // Show all actions first, then snippets
+    // No query: show recent files first, then all actions, then snippets
+    const recentNames = _getRecentFiles ? _getRecentFiles() : [];
+    if (recentNames.length) {
+      const recentItems = recentNames.map((name) => ({
+        name,
+        label: name,
+        description: 'Open from Vault',
+        icon: '🕒',
+        tag: 'recent',
+      }));
+      _renderGroup('Recent Files', recentItems, 'recent');
+    }
     _renderGroup('Actions', actions, 'action');
     _renderGroup('Snippets', snippets, 'snippet');
   } else {
-    // Snippets first for query (more likely what the user wants)
+    // Query active: search recent files too
+    const recentNames = _getRecentFiles ? _getRecentFiles() : [];
+    const recentMatches = recentNames
+      .filter((n) => n.toLowerCase().includes(query.toLowerCase()))
+      .map((name) => ({
+        name,
+        label: name,
+        description: 'Open from Vault',
+        icon: '🕒',
+        tag: 'recent',
+      }));
+
+    if (recentMatches.length) _renderGroup('Recent Files', recentMatches, 'recent');
     if (snippets.length) _renderGroup('Snippets', snippets, 'snippet');
     if (actions.length) _renderGroup('Actions', actions, 'action');
-    if (!snippets.length && !actions.length) {
+    if (!recentMatches.length && !snippets.length && !actions.length) {
       _resultsList.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.875rem;">No results for "<strong>${_escapeHtml(query)}</strong>"</div>`;
     }
   }
@@ -203,6 +235,8 @@ function _activateSelected() {
 
   if (entry.type === 'snippet') {
     if (typeof _onSnippet === 'function') _onSnippet(entry.item);
+  } else if (entry.type === 'recent') {
+    if (typeof _onRecentFile === 'function') _onRecentFile(entry.item.name);
   } else {
     if (typeof _onAction === 'function') _onAction(entry.item.id);
   }

@@ -1158,6 +1158,67 @@ html, body {
 
 .install-banner-close:hover { opacity: 1; }
 
+/* --- Drag-and-Drop Overlay --------------------------------- */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(30, 57, 34, 0.82);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.drop-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  border: 3px dashed var(--burnt-caramel);
+  border-radius: 16px;
+  padding: 48px 64px;
+  background: rgba(225, 217, 196, 0.08);
+}
+
+.drop-overlay-icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.drop-overlay-label {
+  font-size: 1.25rem;
+  color: var(--pearl-beige);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* --- Vault Rename Input ------------------------------------- */
+.vault-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.875rem;
+  padding: 2px 8px;
+  outline: none;
+  font-family: inherit;
+}
+
+.vault-rename-input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
 /* --- Loading Spinner --------------------------------------- */
 .spinner {
   width: 20px; height: 20px;
