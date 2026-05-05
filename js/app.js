@@ -765,7 +765,10 @@ function initDragDrop() {
 
     const files = [...e.dataTransfer.files];
     const mmdFile = files.find(
-      (f) => f.name.endsWith('.mmd') || f.name.endsWith('.txt') || f.type === 'text/plain'
+      (f) =>
+        f.name.toLowerCase().endsWith('.mmd') ||
+        f.name.toLowerCase().endsWith('.txt') ||
+        f.type === 'text/plain'
     );
     if (!mmdFile) {
       updateStatus('warning', 'Drop a .mmd or .txt file to open it');
