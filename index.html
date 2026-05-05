@@ -15,18 +15,12 @@
 
   <title>Sirens — Mermaid Studio</title>
 
-  <!-- BulmaCSS (semantic, lightweight) -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
-        crossorigin="anonymous" />
+  <!-- BulmaCSS (vendored for offline-first) -->
+  <link rel="stylesheet" href="vendor/bulma/bulma.min.css" />
 
-  <!-- CodeMirror 5 — core + addons -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"
-        crossorigin="anonymous" />
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css"
-        crossorigin="anonymous" />
+  <!-- CodeMirror 5 — core + addons (vendored) -->
+  <link rel="stylesheet" href="vendor/codemirror/codemirror.css" />
+  <link rel="stylesheet" href="vendor/codemirror/addon/hint/show-hint.css" />
 
   <!-- App styles -->
   <link rel="stylesheet" href="css/app.css" />
@@ -350,23 +344,16 @@
      4. App modules (ESM)
      ══════════════════════════════════════════════════════════ -->
 
-<!-- CodeMirror 5 core -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"
-        crossorigin="anonymous"></script>
+<!-- CodeMirror 5 core (vendored) -->
+<script src="vendor/codemirror/codemirror.js"></script>
 
-<!-- CodeMirror addons -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/placeholder.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"
-        crossorigin="anonymous"></script>
+<!-- CodeMirror addons (vendored) -->
+<script src="vendor/codemirror/addon/hint/show-hint.js"></script>
+<script src="vendor/codemirror/addon/mode/simple.js"></script>
+<script src="vendor/codemirror/addon/edit/matchbrackets.js"></script>
+<script src="vendor/codemirror/addon/display/placeholder.js"></script>
+<script src="vendor/codemirror/addon/selection/active-line.js"></script>
+<script src="vendor/codemirror/addon/search/searchcursor.js"></script>
 
 <!-- CodeMirror: enable active line highlighting via option -->
 <script>
@@ -378,29 +365,14 @@
   });
 </script>
 
-<!-- Mermaid 10 — loaded as a global via IIFE-compatible build -->
-<script type="module">
-  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-  window.mermaid = mermaid;
-  // Signal that mermaid is ready
-  window.dispatchEvent(new Event('mermaid-ready'));
-</script>
+<!-- Mermaid 10 UMD (vendored — exposes window.mermaid as global) -->
+<script src="vendor/mermaid/mermaid.min.js"></script>
 
-<!-- App entry point (ES module) — defer until mermaid is ready -->
+<!-- App entry point (ES module) — mermaid UMD is already loaded as global -->
 <script type="module">
-  function loadApp() {
-    import('./js/app.js').catch((err) => {
-      console.error('[Sirens] Failed to load app module:', err);
-    });
-  }
-
-  if (window.mermaid) {
-    loadApp();
-  } else {
-    window.addEventListener('mermaid-ready', loadApp, { once: true });
-    // Fallback after 3s even if mermaid event never fires
-    setTimeout(loadApp, 3000);
-  }
+  import('./js/app.js').catch((err) => {
+    console.error('[Sirens] Failed to load app module:', err);
+  });
 </script>
 
 </body>

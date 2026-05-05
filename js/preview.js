@@ -37,7 +37,10 @@ let _mermaidCounter = 0;
 /* ── Mermaid initialisation ─────────────────────────────────── */
 
 export function initMermaid(theme = 'base') {
-  if (!window.mermaid) return;
+  if (!window.mermaid) {
+    console.error('[Sirens] Mermaid not loaded — vendor/mermaid/mermaid.min.js missing?');
+    return;
+  }
   window.mermaid.initialize({
     startOnLoad: false,
     theme,

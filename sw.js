@@ -17,6 +17,18 @@ const APP_SHELL = [
   '/js/themes.js',
   '/js/snippets.js',
   '/icons/icon.svg',
+  // Vendored libraries (bundled locally for true offline support)
+  '/vendor/bulma/bulma.min.css',
+  '/vendor/codemirror/codemirror.js',
+  '/vendor/codemirror/codemirror.css',
+  '/vendor/codemirror/addon/hint/show-hint.js',
+  '/vendor/codemirror/addon/hint/show-hint.css',
+  '/vendor/codemirror/addon/mode/simple.js',
+  '/vendor/codemirror/addon/edit/matchbrackets.js',
+  '/vendor/codemirror/addon/display/placeholder.js',
+  '/vendor/codemirror/addon/selection/active-line.js',
+  '/vendor/codemirror/addon/search/searchcursor.js',
+  '/vendor/mermaid/mermaid.min.js',
 ];
 
 // CDN resources — cache on first use
