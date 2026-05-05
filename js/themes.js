@@ -112,6 +112,9 @@ export function applyMermaidTheme(mermaidTheme, rerender) {
       themeVariables: vars,
       securityLevel: 'loose',
       fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+      flowchart: { useMaxWidth: false, htmlLabels: true },
+      sequence: { useMaxWidth: false },
+      gantt: { useMaxWidth: false },
     });
     if (typeof rerender === 'function') rerender();
   }

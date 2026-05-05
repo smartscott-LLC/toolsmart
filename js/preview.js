@@ -143,11 +143,16 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
     _canvas.innerHTML = svg;
     const svgEl = _canvas.querySelector('svg');
     if (svgEl) {
-      // Override mermaid's inline max-width restriction so the SVG renders at its
-      // natural pixel size.  The width/height attributes are intentionally kept so
-      // the absolutely-positioned canvas has an intrinsic size; without them the
-      // SVG collapses to zero dimensions and becomes invisible.
+      // Remove Mermaid's inline max-width cap.
       svgEl.style.maxWidth = 'none';
+      // Mermaid outputs width="100%" by default, which collapses when the parent
+      // (#preview-canvas) is absolutely positioned with no explicit width.
+      // Setting explicit px dimensions from the viewBox gives the canvas intrinsic size.
+      const vb = svgEl.viewBox.baseVal;
+      if (vb.width > 0 && vb.height > 0) {
+        svgEl.setAttribute('width', vb.width);
+        svgEl.setAttribute('height', vb.height);
+      }
       // Attach click-to-locate handlers
       _attachNodeClickHandlers(svgEl, trimmed);
     }

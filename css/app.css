@@ -447,9 +447,7 @@ html, body {
 
 #preview-canvas svg {
   display: block;
-  max-width: none;
-  width: auto;
-  height: auto;
+  max-width: none !important;
 }
 
 #preview-canvas svg .node,
