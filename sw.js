@@ -1,7 +1,7 @@
 /* ============================================================
    Sirens — Service Worker  (Cache-first for app shell)
    ============================================================ */
-const CACHE_NAME = 'sirens-v2';
+const CACHE_NAME = 'sirens-v3';
 
 // App-shell files that live in this origin
 const APP_SHELL = [
@@ -66,7 +66,8 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then(
         (cached) => cached || fetch(request).then((response) => {
           if (response.ok) {
-            caches.open(CACHE_NAME).then((c) => c.put(request, response.clone()));
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
           }
           return response;
         })
@@ -85,7 +86,8 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           if (response.ok) {
-            caches.open(CDN_CACHE).then((c) => c.put(request, response.clone()));
+            const clone = response.clone();
+            caches.open(CDN_CACHE).then((c) => c.put(request, clone));
           }
           return response;
         })
