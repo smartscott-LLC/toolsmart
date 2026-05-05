@@ -31,7 +31,6 @@ const state = {
   currentFile: null,        // name without extension, or null
   isDirty: false,
   vaultAvailable: false,
-  isWelcomeSeed: false,     // true while the untouched starter seed is showing
 };
 
 /* ── DOM refs ────────────────────────────────────────────────── */
@@ -60,7 +59,6 @@ function initEditor() {
   } else {
     // Starter Seed — an elegant welcome flowchart shown on first visit.
     // Uses classDef to apply the brand palette so the diagram is immediately on-brand.
-    state.isWelcomeSeed = true;
     editor.setValue(
 `%%{ init: { 'theme': 'base', 'themeVariables': {
   'primaryColor': '#1e3922', 'primaryTextColor': '#ddd0b0',
@@ -88,19 +86,9 @@ graph TD
   }
 }
 
+// handleEditorChange is called by the editor's debounced onChange, which only
+// fires for genuine user keystrokes (programmatic setValue() calls are excluded).
 function handleEditorChange(value) {
-  // While the untouched Starter Seed is showing, don't mark it dirty or persist it.
-  // The moment the user edits anything, clear the flag and behave normally.
-  if (state.isWelcomeSeed) {
-    state.isWelcomeSeed = false;
-    // Render it but do not save or set dirty
-    renderDiagram(value, {
-      onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
-      onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
-    });
-    return;
-  }
-
   localStorage.setItem('sirens-editor-content', value);
   state.isDirty = true;
   updateDirtyIndicator();
@@ -171,8 +159,14 @@ function handleSmartBarAction(actionId) {
 function handleSnippetInsert(snippet) {
   if (!editor) return;
   editor.setValue(snippet.code);
-  // Trigger re-render
-  handleEditorChange(snippet.code);
+  // Save and mark dirty directly — setValue won't trigger the debounced onChange.
+  localStorage.setItem('sirens-editor-content', snippet.code);
+  state.isDirty = true;
+  updateDirtyIndicator();
+  renderDiagram(snippet.code, {
+    onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+    onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
+  });
   editor.cm.focus();
 }
 
@@ -322,7 +316,13 @@ async function openDiagramFromVault(name) {
     setLastOpenedFile(name);
     addRecentFile(name);
     editor.setValue(content);
-    handleEditorChange(content);
+    // Persist the loaded content and render it directly.
+    // setValue() does not trigger the debounced onChange, so we handle it here.
+    localStorage.setItem('sirens-editor-content', content);
+    renderDiagram(content, {
+      onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+      onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
+    });
     updateDirtyIndicator();
     updateStatus('ok', `Opened "${name}"`);
   } catch (err) {
@@ -366,6 +366,12 @@ function newDiagram() {
   updateFileNameInput('untitled');
   setLastOpenedFile(null);
   editor.setValue('');
+  localStorage.removeItem('sirens-editor-content');
+  // Render the empty state directly — setValue won't trigger the debounced onChange.
+  renderDiagram('', {
+    onError:   (errors) => editor.setErrors(errors),
+    onSuccess: () => editor.setErrors([]),
+  });
   updateDirtyIndicator();
   updateStatus('ok', 'New diagram');
 }
@@ -622,6 +628,26 @@ function initKeyboardShortcuts() {
       return;
     }
 
+    // Undo / Redo — handled by CodeMirror when the editor is focused;
+    // this fallback fires when the editor does not have focus.
+    if (ctrl && e.key === 'z' && !e.shiftKey) {
+      const active = document.activeElement;
+      if (!active || !active.closest('.CodeMirror')) {
+        e.preventDefault();
+        if (editor) editor.undo();
+        return;
+      }
+    }
+
+    if (ctrl && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
+      const active = document.activeElement;
+      if (!active || !active.closest('.CodeMirror')) {
+        e.preventDefault();
+        if (editor) editor.redo();
+        return;
+      }
+    }
+
     if (e.key === 'Escape') {
       closeSmartBar();
       closeVaultModal();
@@ -634,6 +660,8 @@ function initKeyboardShortcuts() {
 
 function initNavbarButtons() {
   $('btn-new').addEventListener('click', newDiagram);
+  $('btn-undo').addEventListener('click', () => editor && editor.undo());
+  $('btn-redo').addEventListener('click', () => editor && editor.redo());
   $('btn-save').addEventListener('click', saveDiagram);
   $('btn-export').addEventListener('click', openExportModal);
   $('btn-smartbar').addEventListener('click', openSmartBar);
@@ -781,10 +809,15 @@ function initDragDrop() {
       const text = await mmdFile.text();
       const nameWithoutExt = mmdFile.name.replace(/\.(mmd|txt)$/i, '');
       state.currentFile = null;           // dropped files aren't vault-managed yet
-      state.isDirty = false;
+      state.isDirty = false;              // content hasn't been modified yet
       updateFileNameInput(nameWithoutExt);
       editor.setValue(text);
-      handleEditorChange(text);
+      // Persist and render directly — setValue won't trigger the debounced onChange.
+      localStorage.setItem('sirens-editor-content', text);
+      renderDiagram(text, {
+        onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+        onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
+      });
       updateDirtyIndicator();
       updateStatus('ok', `Opened "${mmdFile.name}" from disk`);
     } catch (err) {
