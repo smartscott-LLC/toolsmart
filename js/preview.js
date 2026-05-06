@@ -509,9 +509,29 @@ export function initPreview({ viewport, canvas, onNodeClick }) {
 
 /**
  * Export the current diagram SVG as a downloadable file.
+ * Uses the last successfully rendered SVG string so the export is never stale.
  * @param {string} filename
  */
 export function exportSvg(filename = 'diagram.svg') {
+  // Prefer _lastSvg (the raw Mermaid output) so the export is never stale due
+  // to an in-flight async render. Parse it and re-apply explicit pixel dimensions
+  // from the viewBox so the downloaded file has correct intrinsic size.
+  if (_lastSvg) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(_lastSvg, 'image/svg+xml');
+    const svgEl = doc.documentElement;
+    if (svgEl && svgEl.tagName.toLowerCase() === 'svg') {
+      const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+      if (vb && vb.width > 0 && vb.height > 0) {
+        svgEl.setAttribute('width',  vb.width);
+        svgEl.setAttribute('height', vb.height);
+      }
+      const blob = new Blob([new XMLSerializer().serializeToString(svgEl)], { type: 'image/svg+xml' });
+      _download(blob, filename);
+      return;
+    }
+  }
+  // Fallback: read directly from the live DOM canvas.
   const svg = _canvas && _canvas.querySelector('svg');
   if (!svg) return;
   const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
@@ -521,7 +541,7 @@ export function exportSvg(filename = 'diagram.svg') {
 /**
  * Export the current diagram as a PNG (via canvas).
  * @param {string} filename
- * @param {{ blackAndWhite?: boolean }} [options]
+ * @param {{ blackAndWhite?: boolean, onError?: (msg: string) => void }} [options]
  */
 export function exportPng(filename = 'diagram.png', options = {}) {
   const svg = _canvas && _canvas.querySelector('svg');
@@ -534,6 +554,32 @@ export function exportPng(filename = 'diagram.png', options = {}) {
   if (!svgClone.getAttribute('xmlns')) {
     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   }
+
+  // Strip <foreignObject> elements: Chrome/Firefox refuse to draw SVGs containing
+  // <foreignObject> onto a canvas (they taint it, causing toBlob() to return null).
+  // Replace each one with a plain SVG <text> centred in the same bounding box so
+  // labels still appear in the PNG output.
+  svgClone.querySelectorAll('foreignObject').forEach((fo) => {
+    const x  = parseFloat(fo.getAttribute('x')      || '0');
+    const y  = parseFloat(fo.getAttribute('y')      || '0');
+    const w  = parseFloat(fo.getAttribute('width')  || '0');
+    const h  = parseFloat(fo.getAttribute('height') || '0');
+    const label = fo.textContent.trim();
+    if (label) {
+      const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      textEl.setAttribute('x', x + w / 2);
+      textEl.setAttribute('y', y + h / 2);
+      textEl.setAttribute('text-anchor', 'middle');
+      textEl.setAttribute('dominant-baseline', 'middle');
+      textEl.setAttribute('font-family', "Inter,'Segoe UI',system-ui,sans-serif");
+      textEl.setAttribute('font-size', '14');
+      textEl.setAttribute('fill', 'currentColor');
+      textEl.textContent = label;
+      fo.parentNode.replaceChild(textEl, fo);
+    } else {
+      fo.remove();
+    }
+  });
 
   // Derive explicit pixel dimensions — fall back to viewBox, then safe defaults.
   // naturalWidth/naturalHeight on the Image can be 0 when the SVG has no units,
@@ -551,7 +597,9 @@ export function exportPng(filename = 'diagram.png', options = {}) {
   const img = new Image();
   img.onerror = () => {
     URL.revokeObjectURL(url);
-    console.error('[Sirens] exportPng: failed to load SVG as image');
+    const msg = 'PNG export failed: could not render diagram to image.';
+    console.error('[Sirens] exportPng:', msg);
+    if (typeof options.onError === 'function') options.onError(msg);
   };
   img.onload = () => {
     const SCALE = 3; // 3× for high-DPI
@@ -581,8 +629,17 @@ export function exportPng(filename = 'diagram.png', options = {}) {
       ctx.putImageData(imageData, 0, 0);
     }
 
-    canvas.toBlob((blob) => _download(blob, filename), 'image/png');
     URL.revokeObjectURL(url);
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        const msg = 'PNG export failed: canvas could not be converted (possible security restriction).';
+        console.error('[Sirens] exportPng:', msg);
+        if (typeof options.onError === 'function') options.onError(msg);
+        return;
+      }
+      _download(blob, filename);
+    }, 'image/png');
   };
   img.src = url;
 }
@@ -598,10 +655,18 @@ export function exportMmd(source, filename = 'diagram.mmd') {
 }
 
 function _download(blob, filename) {
+  if (!blob) {
+    console.error('[Sirens] _download: blob is null — download aborted');
+    return;
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
+  // Appending to the document guarantees click() triggers a download in all
+  // major browsers (including Firefox which ignores detached-anchor clicks).
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
