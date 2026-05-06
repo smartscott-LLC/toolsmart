@@ -147,6 +147,7 @@ function handleSmartBarAction(actionId) {
     case 'open-vault':    openVaultModal();               break;
     case 'export-svg':    exportSvg(`${getFileName()}.svg`); break;
     case 'export-png':    exportPng(`${getFileName()}.png`); break;
+    case 'export-png-bw': exportPng(`${getFileName()}.png`, { blackAndWhite: true }); break;
     case 'export-mmd':    exportMmd(editor.getValue(), `${getFileName()}.mmd`); break;
     case 'fit-diagram':   fitDiagram();                  break;
     case 'zoom-in':       zoomIn();                      break;
@@ -450,6 +451,9 @@ function syncStyleSidebarState({ appTheme, mermaidTheme, customCss }) {
 
 function openExportModal() {
   $('export-modal').classList.add('open');
+  // Reset B&W option
+  const bwCheck = $('export-bw-check');
+  if (bwCheck) bwCheck.checked = false;
   // Select first card by default
   const first = document.querySelector('.export-card');
   if (first) selectExportCard(first);
@@ -462,6 +466,9 @@ function closeExportModal() {
 function selectExportCard(card) {
   document.querySelectorAll('.export-card').forEach((c) => c.classList.remove('selected'));
   card.classList.add('selected');
+  // Show B&W option only for PNG
+  const bwRow = $('export-bw-row');
+  if (bwRow) bwRow.style.display = card.dataset.format === 'png' ? '' : 'none';
 }
 
 function initExportModal() {
@@ -474,10 +481,11 @@ function initExportModal() {
     if (!selected) return;
     const fmt = selected.dataset.format;
     const name = getFileName();
+    const bw = $('export-bw-check') ? $('export-bw-check').checked : false;
     switch (fmt) {
-      case 'svg': exportSvg(`${name}.svg`);  break;
-      case 'png': exportPng(`${name}.png`);  break;
-      case 'mmd': exportMmd(editor.getValue(), `${name}.mmd`); break;
+      case 'svg': exportSvg(`${name}.svg`);                        break;
+      case 'png': exportPng(`${name}.png`, { blackAndWhite: bw }); break;
+      case 'mmd': exportMmd(editor.getValue(), `${name}.mmd`);     break;
     }
     closeExportModal();
   });
