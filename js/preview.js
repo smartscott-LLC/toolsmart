@@ -521,14 +521,32 @@ export function exportSvg(filename = 'diagram.svg') {
 /**
  * Export the current diagram as a PNG (via canvas).
  * @param {string} filename
+ * @param {{ blackAndWhite?: boolean }} [options]
  */
-export function exportPng(filename = 'diagram.png') {
+export function exportPng(filename = 'diagram.png', options = {}) {
   const svg = _canvas && _canvas.querySelector('svg');
   if (!svg) return;
 
-  const svgStr = new XMLSerializer().serializeToString(svg);
-  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(svgBlob);
+  // Clone so we don't mutate the live SVG
+  const svgClone = svg.cloneNode(true);
+
+  // Ensure the xmlns attribute is present for correct blob serialization
+  if (!svgClone.getAttribute('xmlns')) {
+    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+
+  // Derive explicit pixel dimensions — fall back to viewBox, then safe defaults.
+  // naturalWidth/naturalHeight on the Image can be 0 when the SVG has no units,
+  // so we record the intended size here and use it as a fallback below.
+  const vb = svg.viewBox.baseVal;
+  const svgW = parseFloat(svg.getAttribute('width'))  || vb.width  || 800;
+  const svgH = parseFloat(svg.getAttribute('height')) || vb.height || 600;
+  svgClone.setAttribute('width',  svgW);
+  svgClone.setAttribute('height', svgH);
+
+  const svgStr  = new XMLSerializer().serializeToString(svgClone);
+  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url     = URL.createObjectURL(svgBlob);
 
   const img = new Image();
   img.onerror = () => {
@@ -536,15 +554,33 @@ export function exportPng(filename = 'diagram.png') {
     console.error('[Sirens] exportPng: failed to load SVG as image');
   };
   img.onload = () => {
+    const SCALE = 3; // 3× for high-DPI
+    // naturalWidth may be 0 when the browser can't infer SVG intrinsic size
+    const naturalW = img.naturalWidth  || svgW;
+    const naturalH = img.naturalHeight || svgH;
+
     const canvas = document.createElement('canvas');
-    const scale = 3; // 3× for high-DPI
-    canvas.width = img.naturalWidth * scale;
-    canvas.height = img.naturalHeight * scale;
+    canvas.width  = naturalW * SCALE;
+    canvas.height = naturalH * SCALE;
     const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
+    ctx.scale(SCALE, SCALE);
+
+    // White background
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
+    ctx.fillRect(0, 0, naturalW, naturalH);
+    ctx.drawImage(img, 0, 0, naturalW, naturalH);
+
+    // Optional grayscale / B&W conversion (pixel-level, reliable cross-browser)
+    if (options.blackAndWhite) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        data[i] = data[i + 1] = data[i + 2] = gray;
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+
     canvas.toBlob((blob) => _download(blob, filename), 'image/png');
     URL.revokeObjectURL(url);
   };
