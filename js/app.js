@@ -146,8 +146,8 @@ function handleSmartBarAction(actionId) {
     case 'save-file':     saveDiagram();                 break;
     case 'open-vault':    openVaultModal();               break;
     case 'export-svg':    exportSvg(`${getFileName()}.svg`); break;
-    case 'export-png':    exportPng(`${getFileName()}.png`); break;
-    case 'export-png-bw': exportPng(`${getFileName()}.png`, { blackAndWhite: true }); break;
+    case 'export-png':    exportPng(`${getFileName()}.png`, { onError: (msg) => updateStatus('error', msg) }); break;
+    case 'export-png-bw': exportPng(`${getFileName()}.png`, { blackAndWhite: true, onError: (msg) => updateStatus('error', msg) }); break;
     case 'export-mmd':    exportMmd(editor.getValue(), `${getFileName()}.mmd`); break;
     case 'fit-diagram':   fitDiagram();                  break;
     case 'zoom-in':       zoomIn();                      break;
@@ -320,8 +320,10 @@ async function openDiagramFromVault(name) {
     editor.setValue(content);
     // Persist the loaded content and render it directly.
     // setValue() does not trigger the debounced onChange, so we handle it here.
+    // Await the render so the canvas is always up-to-date before the caller
+    // (e.g. vault modal close) returns — prevents stale-SVG export edge-cases.
     localStorage.setItem('sirens-editor-content', content);
-    renderDiagram(content, {
+    await renderDiagram(content, {
       onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
       onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
     });
@@ -483,8 +485,8 @@ function initExportModal() {
     const name = getFileName();
     const bw = $('export-bw-check') ? $('export-bw-check').checked : false;
     switch (fmt) {
-      case 'svg': exportSvg(`${name}.svg`);                        break;
-      case 'png': exportPng(`${name}.png`, { blackAndWhite: bw }); break;
+      case 'svg': exportSvg(`${name}.svg`);                                                             break;
+      case 'png': exportPng(`${name}.png`, { blackAndWhite: bw, onError: (msg) => updateStatus('error', msg) }); break;
       case 'mmd': exportMmd(editor.getValue(), `${name}.mmd`);     break;
     }
     closeExportModal();
