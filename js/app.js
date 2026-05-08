@@ -154,7 +154,6 @@ function handleSmartBarAction(actionId) {
     case 'zoom-out':      zoomOut();                     break;
     case 'reset-view':    resetView();                   break;
     case 'open-themes':   toggleStyleSidebar();          break;
-    case 'open-vault-modal': openVaultModal();           break;
   }
 }
 
@@ -354,6 +353,7 @@ async function saveDiagram() {
     state.currentFile = name;
     state.isDirty = false;
     setLastOpenedFile(name);
+    addRecentFile(name);
     updateDirtyIndicator();
     updateStatus('ok', `Saved "${name}" to Vault`);
   } catch (err) {
@@ -686,7 +686,7 @@ function initNavbarButtons() {
   // Vault modal buttons
   $('btn-close-vault').addEventListener('click', closeVaultModal);
   $('btn-vault-new').addEventListener('click', () => { closeVaultModal(); newDiagram(); });
-  $('btn-vault-save').addEventListener('click', () => { closeVaultModal(); saveDiagram(); });
+  $('btn-vault-save').addEventListener('click', async () => { await saveDiagram(); closeVaultModal(); });
 
   // Vault allocation slider
   $('vault-allocation-slider').addEventListener('input', (e) => {
