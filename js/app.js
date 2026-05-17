@@ -24,6 +24,10 @@ import { APP_THEMES, MERMAID_THEMES,
          getCurrentAppTheme,
          getCurrentMermaidTheme,
          getCustomCss }                        from './themes.js';
+import { initPresets }                         from './presets.js';
+import { initCanvasEdit, toggleCanvasEdit,
+         isEditMode, exitCanvasEdit,
+         patchNodeLabel }                      from './canvas-edit.js';
 
 /* ── State ──────────────────────────────────────────────────── */
 
@@ -113,6 +117,8 @@ function initPreviewPanel() {
     viewport: $('preview-viewport'),
     canvas: $('preview-canvas'),
     onNodeClick: (lineNumber, nodeId) => {
+      // In edit mode, clicks are consumed by canvas-edit — don't jump to line
+      if (isEditMode()) return;
       if (lineNumber && editor) {
         editor.goToLine(lineNumber);
         updateStatus('ok', `Located node "${nodeId}" at line ${lineNumber}`);
@@ -126,7 +132,83 @@ function initPreviewPanel() {
   $('btn-zoom-fit').addEventListener('click', fitDiagram);
 }
 
-/* ── SmartBar ────────────────────────────────────────────────── */
+/* ── Canvas Edit ─────────────────────────────────────────────── */
+
+function initCanvasEditPanel() {
+  initCanvasEdit({
+    viewport: $('preview-viewport'),
+    canvas:   $('preview-canvas'),
+    onLabelChange: (nodeId, oldLabel, newLabel) => {
+      if (!editor) return;
+      const source  = editor.getValue();
+      const patched = patchNodeLabel(source, nodeId, oldLabel, newLabel);
+      if (patched === source) {
+        updateStatus('warning', `Could not locate label "${oldLabel}" in source`);
+        return;
+      }
+      editor.setValue(patched);
+      localStorage.setItem('sirens-editor-content', patched);
+      state.isDirty = true;
+      updateDirtyIndicator();
+      renderDiagram(patched, {
+        onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+        onSuccess: () => { editor.setErrors([]); updateStatus('ok', `Renamed "${oldLabel}" → "${newLabel}"`); },
+      });
+    },
+  });
+
+  const btn = $('btn-canvas-edit');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const active = toggleCanvasEdit();
+      btn.setAttribute('aria-pressed', String(active));
+      updateStatus(
+        active ? 'ok' : 'ok',
+        active
+          ? 'Canvas Edit ON — click any node to rename its label'
+          : 'Canvas Edit OFF'
+      );
+    });
+  }
+}
+
+/* ── Presets Panel ───────────────────────────────────────────── */
+
+function initPresetsPanel() {
+  const container = $('preset-panel');
+  if (!container) return;
+  initPresets({
+    container,
+    onInsert: (snippet) => {
+      handleSnippetInsert(snippet);
+      updateStatus('ok', `Inserted "${snippet.label}" template`);
+    },
+  });
+
+  // Allow dragging a preset card and dropping onto the editor panel
+  const editorPanel = $('editor-panel');
+  if (editorPanel) {
+    editorPanel.addEventListener('dragover', (e) => {
+      if (e.dataTransfer.types.includes('application/sirens-snippet-id')) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        editorPanel.classList.add('drop-target');
+      }
+    });
+    editorPanel.addEventListener('dragleave', () => {
+      editorPanel.classList.remove('drop-target');
+    });
+    editorPanel.addEventListener('drop', (e) => {
+      editorPanel.classList.remove('drop-target');
+      const snippetId = e.dataTransfer.getData('application/sirens-snippet-id');
+      if (!snippetId) return;
+      e.preventDefault();
+      // Simulate a click on the matching preset card so initPresets' handler runs
+      const card = document.querySelector(`.preset-card[data-id="${CSS.escape(snippetId)}"]`);
+      if (card) card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+  }
+}
 
 function initSmartBarPanel() {
   initSmartBar({
@@ -727,8 +809,10 @@ async function boot() {
   state.vaultAvailable = await initVault();
   initEditor();
   initPreviewPanel();
+  initCanvasEditPanel();
   initSmartBarPanel();
   initStyleSidebar();
+  initPresetsPanel();
   initExportModal();
   initResizeHandle();
   initNavbarButtons();

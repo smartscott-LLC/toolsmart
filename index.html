@@ -133,6 +133,8 @@
           <button id="btn-zoom-in"    class="preview-btn" title="Zoom in">＋</button>
           <button id="btn-zoom-reset" class="preview-btn" title="Reset view">⌖</button>
           <button id="btn-zoom-fit"   class="preview-btn" title="Fit to panel">⊡</button>
+          <div class="preview-controls-divider"></div>
+          <button id="btn-canvas-edit" class="preview-btn preview-btn-edit" title="Toggle Canvas Edit — click nodes to rename labels" aria-pressed="false">✏️ Edit</button>
         </div>
       </div>
       <div id="preview-viewport">
@@ -167,6 +169,11 @@
           spellcheck="false"
         ></textarea>
         <button id="btn-apply-css" class="sidebar-btn">Apply CSS</button>
+
+        <div class="sidebar-section-title" style="margin-top:20px;">Template Library</div>
+        <div id="preset-panel" class="preset-panel" aria-label="Diagram template presets">
+          <!-- Populated by presets.js -->
+        </div>
       </div>
     </aside>
 
