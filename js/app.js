@@ -45,6 +45,35 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+// Start the app
+boot();
+
+let deferredPrompt;
+const installBtn = document.getElementById('YOUR_INSTALL_BUTTON_ID');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent Chrome 67 and earlier from automatically showing the prompt
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  deferredPrompt = e;
+  // Update UI to notify the user they can install the PWA
+  installBtn.style.display = 'block';
+
+  installBtn.addEventListener('click', () => {
+    // Hide our user interface that shows our A2HS button
+    installBtn.style.display = 'none';
+    // Show the native prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      }
+      deferredPrompt = null;
+    });
+  });
+});
+
 /* ── Editor ─────────────────────────────────────────────────── */
 
 let editor = null;
@@ -1216,32 +1245,4 @@ function _formatDate(ts) {
   });
 }
 
-// Start the app
-boot();
-
-let deferredPrompt;
-const installBtn = document.getElementById('YOUR_INSTALL_BUTTON_ID');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent Chrome 67 and earlier from automatically showing the prompt
-  e.preventDefault();
-  // Stash the event so it can be triggered later.
-  deferredPrompt = e;
-  // Update UI to notify the user they can install the PWA
-  installBtn.style.display = 'block';
-
-  installBtn.addEventListener('click', () => {
-    // Hide our user interface that shows our A2HS button
-    installBtn.style.display = 'none';
-    // Show the native prompt
-    deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      }
-      deferredPrompt = null;
-    });
-  });
-});
 
