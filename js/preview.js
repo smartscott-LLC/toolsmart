@@ -139,8 +139,17 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
     // Discard result if a newer render has already been requested.
     if (thisGeneration !== _renderGeneration) return;
 
-    _lastSvg = svg;
-    _canvas.innerHTML = svg;
+    // Parse via the HTML parser so <foreignObject> HTML labels render correctly,
+    // then insert via DOM APIs to avoid an innerHTML assignment with a tainted string.
+    const tempDoc   = new DOMParser().parseFromString(`<body>${svg}</body>`, 'text/html');
+    const parsedSvg = tempDoc.querySelector('svg');
+    if (!parsedSvg) {
+      if (typeof onError === 'function') onError([{ line: 1, message: 'Render produced no SVG element' }]);
+      return;
+    }
+    const imported = document.importNode(parsedSvg, true);
+    _canvas.replaceChildren(imported);
+
     const svgEl = _canvas.querySelector('svg');
     if (svgEl) {
       // Remove Mermaid's inline max-width cap.
@@ -157,6 +166,10 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
       _attachNodeClickHandlers(svgEl, trimmed);
     }
 
+    // Serialise from the live DOM so _lastSvg is always correct SVG XML and no
+    // longer carries the taint from the raw mermaid.render() string.
+    _lastSvg = svgEl ? new XMLSerializer().serializeToString(svgEl) : svg;
+
     if (typeof onSuccess === 'function') onSuccess([]);
   } catch (err) {
     // Discard result if a newer render has already been requested.
@@ -167,7 +180,10 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
     // Preserve the last successful diagram rather than blanking the canvas.
     // The error is surfaced via the status bar and editor gutter.
     if (!_lastSvg) {
-      _canvas.innerHTML = `<div class="render-error">${_escapeHtml(err.message || String(err))}</div>`;
+      const errDiv = document.createElement('div');
+      errDiv.className = 'render-error';
+      errDiv.textContent = err.message || String(err);
+      _canvas.replaceChildren(errDiv);
     }
 
     if (typeof onError === 'function') onError(errors);
@@ -670,6 +686,4 @@ function _download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
-function _escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+
