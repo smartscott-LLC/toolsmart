@@ -1270,30 +1270,36 @@ html, body {
   cursor: crosshair;
 }
 
-/* Subtle pulsing border when edit mode is on */
-#preview-viewport.canvas-edit-active::after {
-  content: '✏️  Edit Mode — click a node to rename';
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
-  pointer-events: none;
-  z-index: 50;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
+/* Mode banner is now in the canvas-edit-toolbar bar, not a CSS pseudo-element */
 
-/* In edit mode nodes show an edit cursor */
+/* In edit mode nodes show a pointer cursor */
 #preview-viewport.canvas-edit-active #preview-canvas svg .node,
 #preview-viewport.canvas-edit-active #preview-canvas svg .actor,
 #preview-viewport.canvas-edit-active #preview-canvas svg .entityBox {
-  cursor: text;
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+
+/* Connect mode: cross-hair for whole viewport */
+#preview-viewport.canvas-connect-mode {
+  cursor: crosshair;
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+#preview-viewport.canvas-connect-mode #preview-canvas svg .node,
+#preview-viewport.canvas-connect-mode #preview-canvas svg .actor {
+  cursor: crosshair;
+}
+
+/* Selected node highlight */
+#preview-canvas svg .canvas-edit-selected > rect,
+#preview-canvas svg .canvas-edit-selected > circle,
+#preview-canvas svg .canvas-edit-selected > ellipse,
+#preview-canvas svg .canvas-edit-selected > polygon,
+#preview-canvas svg .canvas-edit-selected > path {
+  stroke: var(--accent) !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 6px rgba(194,94,7,0.5));
 }
 
 /* Preview-panel edit button active state */
@@ -1315,9 +1321,255 @@ html, body {
   font-family: inherit;
   color: var(--text);
   outline: none;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-  min-width: 80px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+  min-width: 120px;
   text-align: center;
+}
+
+/* Canvas Edit Toolbar bar */
+.canvas-edit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--editor-gutter);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+
+.canvas-edit-toolbar[hidden] { display: none; }
+
+.ce-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+}
+.ce-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.ce-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ce-btn-danger:hover:not(:disabled) {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+}
+
+.ce-shape-select {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ce-shape-select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.ce-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.ce-selection-info {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+
+.ce-hint {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Right-click context menu */
+.canvas-ctx-menu {
+  position: fixed;
+  z-index: 9500;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.22);
+  padding: 4px 0;
+  min-width: 160px;
+  font-size: 0.82rem;
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 14px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition);
+}
+.ctx-item:hover { background: rgba(194,94,7,0.10); }
+.ctx-item-danger { color: var(--error); }
+.ctx-item-danger:hover { background: rgba(211,47,47,0.10); }
+
+.ctx-icon { font-size: 0.85rem; width: 16px; flex-shrink: 0; }
+
+hr.ctx-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+/* Add Node Modal — small fields */
+.modal-box-sm {
+  max-width: 400px !important;
+}
+
+.add-node-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.add-node-label-txt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.add-node-input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--editor-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.add-node-input:focus { border-color: var(--accent); }
+
+.add-node-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--editor-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.add-node-connect-row {
+  background: rgba(194,94,7,0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.add-node-connect-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+/* Insert Choice Modal */
+.insert-choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.insert-choice-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  background: var(--surface);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.insert-choice-card:hover {
+  border-color: var(--accent);
+  background: rgba(194,94,7,0.06);
+}
+
+.insert-choice-card:disabled,
+.insert-choice-card[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.insert-choice-card-replace:hover {
+  border-color: var(--text-muted);
+}
+
+.insert-choice-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.insert-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.insert-choice-text strong {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.insert-choice-text span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* Divider in preview controls */

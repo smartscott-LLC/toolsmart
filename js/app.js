@@ -27,7 +27,11 @@ import { APP_THEMES, MERMAID_THEMES,
 import { initPresets }                         from './presets.js';
 import { initCanvasEdit, toggleCanvasEdit,
          isEditMode, exitCanvasEdit,
-         patchNodeLabel }                      from './canvas-edit.js';
+         patchNodeLabel, patchDeleteNode,
+         patchChangeNodeShape, patchAddNode,
+         patchAddEdge, getSelectedNodeInfo,
+         startConnectMode, renameSelected,
+         SHAPE_CATALOGUE }                     from './canvas-edit.js';
 
 /* ── State ──────────────────────────────────────────────────── */
 
@@ -134,10 +138,37 @@ function initPreviewPanel() {
 
 /* ── Canvas Edit ─────────────────────────────────────────────── */
 
+/* Auto-incrementing ID counter for new nodes */
+let _nodeCounter = 1;
+function _nextNodeId() { return `N${_nodeCounter++}`; }
+
+function _rerender(source) {
+  localStorage.setItem('sirens-editor-content', source);
+  state.isDirty = true;
+  updateDirtyIndicator();
+  renderDiagram(source, {
+    onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+    onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
+  });
+}
+
 function initCanvasEditPanel() {
+  // Populate the shape picker in the canvas-edit toolbar
+  const shapeSel = $('ce-shape-select');
+  if (shapeSel) {
+    SHAPE_CATALOGUE.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.value;
+      opt.textContent = s.label;
+      shapeSel.appendChild(opt);
+    });
+  }
+
   initCanvasEdit({
     viewport: $('preview-viewport'),
     canvas:   $('preview-canvas'),
+
+    // ── Rename label ────────────────────────────────────────────
     onLabelChange: (nodeId, oldLabel, newLabel) => {
       if (!editor) return;
       const source  = editor.getValue();
@@ -147,29 +178,217 @@ function initCanvasEditPanel() {
         return;
       }
       editor.setValue(patched);
-      localStorage.setItem('sirens-editor-content', patched);
-      state.isDirty = true;
-      updateDirtyIndicator();
-      renderDiagram(patched, {
-        onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
-        onSuccess: () => { editor.setErrors([]); updateStatus('ok', `Renamed "${oldLabel}" → "${newLabel}"`); },
-      });
+      _rerender(patched);
+      updateStatus('ok', `Renamed "${oldLabel}" → "${newLabel}"`);
+    },
+
+    // ── Delete node ──────────────────────────────────────────────
+    onNodeDelete: (nodeId) => {
+      if (!editor) return;
+      const source  = editor.getValue();
+      const patched = patchDeleteNode(source, nodeId);
+      editor.setValue(patched);
+      _rerender(patched);
+      updateStatus('ok', `Deleted node "${nodeId}"`);
+      _syncCeToolbarSelection(null, null);
+    },
+
+    // ── Change shape ─────────────────────────────────────────────
+    onShapeChange: (nodeId, label, shapeOpt) => {
+      if (!editor) return;
+      const source  = editor.getValue();
+      const patched = patchChangeNodeShape(source, nodeId, label, shapeOpt);
+      if (patched === source) {
+        updateStatus('warning', `Could not find node "${nodeId}" to reshape`);
+        return;
+      }
+      editor.setValue(patched);
+      _rerender(patched);
+      updateStatus('ok', `Changed "${nodeId}" shape to ${shapeOpt.label}`);
+    },
+
+    // ── Add edge ─────────────────────────────────────────────────
+    onEdgeAdd: (fromId, toId, edgeLabel, edgeStyle) => {
+      if (!editor) return;
+      const source  = editor.getValue();
+      const patched = patchAddEdge(source, fromId, toId, edgeLabel, edgeStyle);
+      editor.setValue(patched);
+      _rerender(patched);
+      updateStatus('ok', `Connected "${fromId}" → "${toId}"`);
+    },
+
+    // ── Node selected ────────────────────────────────────────────
+    onNodeSelect: (nodeId, label) => {
+      _syncCeToolbarSelection(nodeId, label);
+    },
+
+    // ── Node deselected ──────────────────────────────────────────
+    onNodeDeselect: () => {
+      _syncCeToolbarSelection(null, null);
     },
   });
 
+  // ── Canvas-edit toggle button ────────────────────────────────
   const btn = $('btn-canvas-edit');
+  const toolbar = $('canvas-edit-toolbar');
   if (btn) {
     btn.addEventListener('click', () => {
       const active = toggleCanvasEdit();
       btn.setAttribute('aria-pressed', String(active));
-      updateStatus(
-        active ? 'ok' : 'ok',
-        active
-          ? 'Canvas Edit ON — click any node to rename its label'
-          : 'Canvas Edit OFF'
-      );
+      btn.textContent = active ? '✏️ Editing' : '✏️ Edit';
+      if (toolbar) toolbar.hidden = !active;
+      updateStatus('ok', active
+        ? 'Canvas Edit ON — click nodes to select, double-click to rename, right-click for menu'
+        : 'Canvas Edit OFF');
+      if (!active) _syncCeToolbarSelection(null, null);
     });
   }
+
+  // ── Add Node button ──────────────────────────────────────────
+  const addNodeBtn = $('btn-ce-add-node');
+  if (addNodeBtn) {
+    addNodeBtn.addEventListener('click', () => _openAddNodeModal());
+  }
+
+  // ── Connect button ───────────────────────────────────────────
+  const connectBtn = $('btn-ce-connect');
+  if (connectBtn) {
+    connectBtn.addEventListener('click', () => {
+      const sel = getSelectedNodeInfo();
+      if (!sel) { updateStatus('warning', 'Select a node first, then click Connect'); return; }
+      startConnectMode(sel.nodeId);
+      updateStatus('ok', `Connect mode — click the target node to draw an edge from "${sel.nodeId}"`);
+    });
+  }
+
+  // ── Rename button ────────────────────────────────────────────
+  const renameBtn = $('btn-ce-rename');
+  if (renameBtn) {
+    renameBtn.addEventListener('click', () => renameSelected());
+  }
+
+  // ── Shape select ─────────────────────────────────────────────
+  if (shapeSel) {
+    shapeSel.addEventListener('change', () => {
+      const sel = getSelectedNodeInfo();
+      if (!sel) return;
+      const shapeOpt = SHAPE_CATALOGUE.find(s => s.value === shapeSel.value);
+      if (!shapeOpt || !editor) return;
+      const source  = editor.getValue();
+      const patched = patchChangeNodeShape(source, sel.nodeId, sel.label, shapeOpt);
+      if (patched === source) { updateStatus('warning', `Could not find node to reshape`); return; }
+      editor.setValue(patched);
+      _rerender(patched);
+      updateStatus('ok', `Changed shape to ${shapeOpt.label}`);
+      shapeSel.value = '';
+    });
+  }
+
+  // ── Delete button ─────────────────────────────────────────────
+  const deleteBtn = $('btn-ce-delete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      const sel = getSelectedNodeInfo();
+      if (!sel) return;
+      if (!confirm(`Delete node "${sel.label || sel.nodeId}" and all its connections?`)) return;
+      const source  = editor.getValue();
+      const patched = patchDeleteNode(source, sel.nodeId);
+      editor.setValue(patched);
+      _rerender(patched);
+      updateStatus('ok', `Deleted node "${sel.nodeId}"`);
+      _syncCeToolbarSelection(null, null);
+    });
+  }
+
+  // ── Add-node modal confirm ────────────────────────────────────
+  $('btn-add-node-ok').addEventListener('click', _confirmAddNode);
+  $('btn-add-node-cancel').addEventListener('click', () => {
+    $('add-node-modal').classList.remove('open');
+  });
+  const closeAddNode = $('btn-close-add-node');
+  if (closeAddNode) closeAddNode.addEventListener('click', () => $('add-node-modal').classList.remove('open'));
+  $('add-node-modal').addEventListener('click', (e) => {
+    if (e.target === $('add-node-modal')) $('add-node-modal').classList.remove('open');
+  });
+  $('add-node-label').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); _confirmAddNode(); }
+    if (e.key === 'Escape') $('add-node-modal').classList.remove('open');
+  });
+  // Populate shape picker in add-node modal
+  const addShapeSel = $('add-node-shape');
+  if (addShapeSel) {
+    SHAPE_CATALOGUE.forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.value;
+      opt.textContent = s.label;
+      addShapeSel.appendChild(opt);
+    });
+  }
+}
+
+function _syncCeToolbarSelection(nodeId, label) {
+  const info    = $('ce-selection-info');
+  const rename  = $('btn-ce-rename');
+  const shape   = $('ce-shape-select');
+  const del     = $('btn-ce-delete');
+  const connect = $('btn-ce-connect');
+  const hasNode = !!nodeId;
+  if (info)    info.textContent = hasNode ? `Selected: ${label || nodeId}` : 'Click a node to select';
+  if (rename)  rename.disabled  = !hasNode;
+  if (shape)   { shape.disabled = !hasNode; if (!hasNode) shape.value = ''; }
+  if (del)     del.disabled     = !hasNode;
+  if (connect) connect.disabled = !hasNode;
+}
+
+function _openAddNodeModal() {
+  const sel = getSelectedNodeInfo();
+  const connectCheck = $('add-node-connect');
+  const connectRow   = $('add-node-connect-row');
+  if (connectCheck && connectRow) {
+    if (sel) {
+      connectCheck.checked = true;
+      connectRow.hidden    = false;
+      const fromLabel = $('add-node-from-label');
+      if (fromLabel) fromLabel.textContent = sel.label || sel.nodeId;
+    } else {
+      connectCheck.checked = false;
+      connectRow.hidden    = true;
+    }
+  }
+  const labelInput = $('add-node-label');
+  if (labelInput) { labelInput.value = ''; }
+  const shapeEl = $('add-node-shape');
+  if (shapeEl) shapeEl.value = 'rect';
+  $('add-node-modal').classList.add('open');
+  requestAnimationFrame(() => labelInput && labelInput.focus());
+}
+
+function _confirmAddNode() {
+  const labelInput = $('add-node-label');
+  const newLabel   = (labelInput ? labelInput.value.trim() : '') || 'New Node';
+  const shapeEl    = $('add-node-shape');
+  const shapeOpt   = SHAPE_CATALOGUE.find(s => s.value === (shapeEl ? shapeEl.value : 'rect'))
+                     || SHAPE_CATALOGUE[0];
+  const connectCheck = $('add-node-connect');
+  const edgeLabelEl  = $('add-node-edge-label');
+
+  let fromId    = null;
+  let edgeLabel = '';
+  if (connectCheck && connectCheck.checked) {
+    const sel = getSelectedNodeInfo();
+    if (sel) { fromId = sel.nodeId; }
+  }
+  if (edgeLabelEl) edgeLabel = edgeLabelEl.value.trim();
+
+  $('add-node-modal').classList.remove('open');
+
+  if (!editor) return;
+  const newId   = _nextNodeId();
+  const source  = editor.getValue();
+  const patched = patchAddNode(source, newId, newLabel, shapeOpt, fromId, edgeLabel);
+  editor.setValue(patched);
+  _rerender(patched);
+  updateStatus('ok', `Added node "${newLabel}" (${newId})`);
 }
 
 /* ── Presets Panel ───────────────────────────────────────────── */
@@ -179,10 +398,7 @@ function initPresetsPanel() {
   if (!container) return;
   initPresets({
     container,
-    onInsert: (snippet) => {
-      handleSnippetInsert(snippet);
-      updateStatus('ok', `Inserted "${snippet.label}" template`);
-    },
+    onInsert: (snippet) => handleSnippetInsert(snippet),
   });
 
   // Allow dragging a preset card and dropping onto the editor panel
@@ -241,16 +457,90 @@ function handleSmartBarAction(actionId) {
 
 function handleSnippetInsert(snippet) {
   if (!editor) return;
-  editor.setValue(snippet.code);
-  // Save and mark dirty directly — setValue won't trigger the debounced onChange.
-  localStorage.setItem('sirens-editor-content', snippet.code);
+
+  const currentValue = editor.getValue().trim();
+
+  if (!currentValue) {
+    // Empty editor — just load the snippet directly
+    _applySnippet(snippet.code);
+    updateStatus('ok', `Inserted "${snippet.label}" template`);
+    return;
+  }
+
+  // Editor has content — show the insert-choice modal
+  _pendingSnippet = snippet;
+  const nameEl = $('insert-choice-snippet-name');
+  if (nameEl) nameEl.textContent = snippet.label;
+
+  // Determine if we can offer an "Append" option
+  const canAppend = _canMergeSnippet(currentValue, snippet.code);
+  const appendBtn = $('btn-insert-append');
+  if (appendBtn) appendBtn.disabled = !canAppend;
+
+  $('insert-choice-modal').classList.add('open');
+}
+
+let _pendingSnippet = null;
+
+function _getDiagramRootType(code) {
+  const first = code.trim().split('\n')[0].trim().toLowerCase();
+  if (first.startsWith('graph ') || first.startsWith('flowchart ')) return 'graph';
+  return first.split(/[\s{]/)[0];
+}
+
+function _canMergeSnippet(existing, snippetCode) {
+  return _getDiagramRootType(existing) === 'graph' &&
+         _getDiagramRootType(snippetCode) === 'graph';
+}
+
+function _appendSnippetNodes(existing, snippetCode) {
+  // Skip the first line of the snippet (the "graph TD" header) and append the rest
+  const snippetLines = snippetCode.trim().split('\n');
+  const body = snippetLines.slice(1).join('\n');
+  return existing.trimEnd() + '\n' + body;
+}
+
+function _applySnippet(code) {
+  editor.setValue(code);
+  localStorage.setItem('sirens-editor-content', code);
   state.isDirty = true;
   updateDirtyIndicator();
-  renderDiagram(snippet.code, {
+  renderDiagram(code, {
     onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
     onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
   });
   editor.cm.focus();
+}
+
+function initInsertChoiceModal() {
+  $('btn-insert-append').addEventListener('click', () => {
+    $('insert-choice-modal').classList.remove('open');
+    if (!_pendingSnippet || !editor) return;
+    const merged = _appendSnippetNodes(editor.getValue(), _pendingSnippet.code);
+    _applySnippet(merged);
+    updateStatus('ok', `Appended "${_pendingSnippet.label}" nodes to diagram`);
+    _pendingSnippet = null;
+  });
+
+  $('btn-insert-replace').addEventListener('click', () => {
+    $('insert-choice-modal').classList.remove('open');
+    if (!_pendingSnippet) return;
+    _applySnippet(_pendingSnippet.code);
+    updateStatus('ok', `Replaced diagram with "${_pendingSnippet.label}"`);
+    _pendingSnippet = null;
+  });
+
+  $('btn-insert-cancel').addEventListener('click', () => {
+    $('insert-choice-modal').classList.remove('open');
+    _pendingSnippet = null;
+  });
+
+  $('insert-choice-modal').addEventListener('click', (e) => {
+    if (e.target === $('insert-choice-modal')) {
+      $('insert-choice-modal').classList.remove('open');
+      _pendingSnippet = null;
+    }
+  });
 }
 
 /* ── Vault Modal ─────────────────────────────────────────────── */
@@ -745,6 +1035,9 @@ function initKeyboardShortcuts() {
       closeSmartBar();
       closeVaultModal();
       closeExportModal();
+      $('insert-choice-modal').classList.remove('open');
+      $('add-node-modal').classList.remove('open');
+      _pendingSnippet = null;
     }
   });
 }
@@ -810,6 +1103,7 @@ async function boot() {
   initEditor();
   initPreviewPanel();
   initCanvasEditPanel();
+  initInsertChoiceModal();
   initSmartBarPanel();
   initStyleSidebar();
   initPresetsPanel();
