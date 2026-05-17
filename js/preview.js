@@ -34,7 +34,7 @@ let _lastSource = '';
 
 let _mermaidCounter = 0;
 let _renderGeneration = 0;  // incremented on every render; used to discard stale results
-let _lastSvg = '';           // last successfully rendered SVG
+let _hasRendered = false;   // true once a diagram has been successfully rendered
 
 /* ── Mermaid initialisation ─────────────────────────────────── */
 
@@ -98,7 +98,7 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
   if (!trimmed) {
     // Clear the cached SVG so that future errors in the new (empty) session show the
     // error message rather than the ghost of the previous successful diagram.
-    _lastSvg = '';
+    _hasRendered = false;
     _canvas.innerHTML = `
       <div class="preview-empty">
         <svg class="preview-watermark" viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -139,12 +139,13 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
     // Discard result if a newer render has already been requested.
     if (thisGeneration !== _renderGeneration) return;
 
-    // Parse via the HTML parser so <foreignObject> HTML labels render correctly,
-    // then insert via DOM APIs to avoid an innerHTML assignment with a tainted string.
-    const tempDoc   = new DOMParser().parseFromString(`<body>${svg}</body>`, 'text/html');
-    const parsedSvg = tempDoc.querySelector('svg');
-    if (!parsedSvg) {
-      if (typeof onError === 'function') onError([{ line: 1, message: 'Render produced no SVG element' }]);
+    // Parse as SVG/XML — not an HTML context, so no XSS-through-DOM concern.
+    // Mermaid's foreignObject content uses xmlns="http://www.w3.org/1999/xhtml",
+    // so those elements are in the HTML namespace and render correctly after importNode.
+    const tempDoc   = new DOMParser().parseFromString(svg, 'image/svg+xml');
+    const parsedSvg = tempDoc.documentElement;
+    if (!parsedSvg || parsedSvg.tagName.toLowerCase() !== 'svg') {
+      if (typeof onError === 'function') onError([{ line: 1, message: 'Render produced no valid SVG element' }]);
       return;
     }
     const imported = document.importNode(parsedSvg, true);
@@ -166,9 +167,7 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
       _attachNodeClickHandlers(svgEl, trimmed);
     }
 
-    // Serialise from the live DOM so _lastSvg is always correct SVG XML and no
-    // longer carries the taint from the raw mermaid.render() string.
-    _lastSvg = svgEl ? new XMLSerializer().serializeToString(svgEl) : svg;
+    _hasRendered = true;
 
     if (typeof onSuccess === 'function') onSuccess([]);
   } catch (err) {
@@ -179,7 +178,7 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
 
     // Preserve the last successful diagram rather than blanking the canvas.
     // The error is surfaced via the status bar and editor gutter.
-    if (!_lastSvg) {
+    if (!_hasRendered) {
       const errDiv = document.createElement('div');
       errDiv.className = 'render-error';
       errDiv.textContent = err.message || String(err);
@@ -529,28 +528,27 @@ export function initPreview({ viewport, canvas, onNodeClick }) {
  * @param {string} filename
  */
 export function exportSvg(filename = 'diagram.svg') {
-  // Prefer _lastSvg (the raw Mermaid output) so the export is never stale due
-  // to an in-flight async render. Parse it and re-apply explicit pixel dimensions
-  // from the viewBox so the downloaded file has correct intrinsic size.
-  if (_lastSvg) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(_lastSvg, 'image/svg+xml');
-    const svgEl = doc.documentElement;
-    if (svgEl && svgEl.tagName.toLowerCase() === 'svg') {
-      const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
-      if (vb && vb.width > 0 && vb.height > 0) {
-        svgEl.setAttribute('width',  vb.width);
-        svgEl.setAttribute('height', vb.height);
-      }
-      const blob = new Blob([new XMLSerializer().serializeToString(svgEl)], { type: 'image/svg+xml' });
-      _download(blob, filename);
-      return;
-    }
-  }
-  // Fallback: read directly from the live DOM canvas.
+  // Clone from the live DOM canvas — no taint path from mermaid.render() output.
+  // cloneNode() is synchronous; any concurrent async render cannot affect the clone.
   const svg = _canvas && _canvas.querySelector('svg');
   if (!svg) return;
-  const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
+
+  const clone = svg.cloneNode(true);
+
+  // Ensure explicit pixel dimensions from the viewBox so the downloaded file
+  // has correct intrinsic size when opened in vector editors.
+  const vb = svg.viewBox.baseVal;
+  if (vb && vb.width > 0 && vb.height > 0) {
+    clone.setAttribute('width',  vb.width);
+    clone.setAttribute('height', vb.height);
+  }
+
+  // Ensure xmlns is present for stand-alone SVG files.
+  if (!clone.getAttribute('xmlns')) {
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
   _download(blob, filename);
 }
 
