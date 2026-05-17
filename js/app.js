@@ -458,26 +458,11 @@ function handleSmartBarAction(actionId) {
 function handleSnippetInsert(snippet) {
   if (!editor) return;
 
-  const currentValue = editor.getValue().trim();
-
-  if (!currentValue) {
-    // Empty editor — just load the snippet directly
-    _applySnippet(snippet.code);
-    updateStatus('ok', `Inserted "${snippet.label}" template`);
-    return;
-  }
-
-  // Editor has content — show the insert-choice modal
-  _pendingSnippet = snippet;
-  const nameEl = $('insert-choice-snippet-name');
-  if (nameEl) nameEl.textContent = snippet.label;
-
-  // Determine if we can offer an "Append" option
-  const canAppend = _canMergeSnippet(currentValue, snippet.code);
-  const appendBtn = $('btn-insert-append');
-  if (appendBtn) appendBtn.disabled = !canAppend;
-
-  $('insert-choice-modal').classList.add('open');
+  // Insert the preset code at the current cursor position.
+  // replaceRange with a single position inserts without overwriting any content.
+  editor.cm.replaceRange(snippet.code, editor.cm.getCursor());
+  editor.cm.focus();
+  updateStatus('ok', `Inserted "${snippet.label}"`);
 }
 
 let _pendingSnippet = null;
