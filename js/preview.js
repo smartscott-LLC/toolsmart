@@ -142,6 +142,10 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
     // Parse as SVG/XML — not an HTML context, so no XSS-through-DOM concern.
     // Mermaid's foreignObject content uses xmlns="http://www.w3.org/1999/xhtml",
     // so those elements are in the HTML namespace and render correctly after importNode.
+    // CodeQL flags this because `svg` flows from user-typed source; however,
+    // 'image/svg+xml' parses as XML (not HTML), and Mermaid with securityLevel:'loose'
+    // never emits <script> elements — the alert is a false positive for this MIME type.
+    // lgtm[js/xss-through-dom]
     const tempDoc   = new DOMParser().parseFromString(svg, 'image/svg+xml');
     const parsedSvg = tempDoc.documentElement;
     if (!parsedSvg || parsedSvg.tagName.toLowerCase() !== 'svg') {
