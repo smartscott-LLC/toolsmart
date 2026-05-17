@@ -134,9 +134,27 @@
           <button id="btn-zoom-reset" class="preview-btn" title="Reset view">⌖</button>
           <button id="btn-zoom-fit"   class="preview-btn" title="Fit to panel">⊡</button>
           <div class="preview-controls-divider"></div>
-          <button id="btn-canvas-edit" class="preview-btn preview-btn-edit" title="Toggle Canvas Edit — click nodes to rename labels" aria-pressed="false">✏️ Edit</button>
+          <button id="btn-canvas-edit" class="preview-btn preview-btn-edit" title="Toggle Canvas Edit — click nodes to select, rename, reshape, delete, or connect" aria-pressed="false">✏️ Edit</button>
         </div>
       </div>
+
+      <!-- Canvas Edit Toolbar — shown when Edit Mode is active -->
+      <div id="canvas-edit-toolbar" class="canvas-edit-toolbar" hidden>
+        <button id="btn-ce-add-node" class="ce-btn" title="Add a new node to the diagram">⊕ Add Node</button>
+        <button id="btn-ce-connect"  class="ce-btn" disabled title="Connect selected node to another node">→ Connect</button>
+        <div class="ce-sep"></div>
+        <span id="ce-selection-info" class="ce-selection-info">Click a node to select</span>
+        <div class="ce-sep"></div>
+        <button id="btn-ce-rename" class="ce-btn" disabled title="Rename selected node label (F2)">✏️ Rename</button>
+        <select id="ce-shape-select" class="ce-shape-select" disabled title="Change selected node shape">
+          <option value="">⬡ Shape…</option>
+          <!-- Populated by app.js -->
+        </select>
+        <button id="btn-ce-delete" class="ce-btn ce-btn-danger" disabled title="Delete selected node (Del)">🗑 Delete</button>
+        <div class="ce-sep"></div>
+        <span class="ce-hint">Dbl-click to rename · Right-click for menu · Del key deletes</span>
+      </div>
+
       <div id="preview-viewport">
         <div id="preview-canvas">
           <div class="preview-empty">
@@ -343,6 +361,81 @@
 
     <div class="modal-footer">
       <button id="btn-do-export" class="btn btn-primary">⬇️ Download</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     Add Node Modal (Canvas Edit)
+     ══════════════════════════════════════════════════════════ -->
+<div id="add-node-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Add node to diagram">
+  <div class="modal-box modal-box-sm">
+    <div class="modal-header">
+      <span style="font-size:1.3rem;">⊕</span>
+      <span class="modal-title">Add Node</span>
+      <button id="btn-close-add-node" class="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="add-node-field">
+        <label class="add-node-label-txt" for="add-node-label">Node Label</label>
+        <input id="add-node-label" type="text" class="add-node-input" placeholder="e.g. Process A" autocomplete="off" />
+      </div>
+      <div class="add-node-field">
+        <label class="add-node-label-txt" for="add-node-shape">Shape</label>
+        <select id="add-node-shape" class="add-node-select">
+          <!-- Populated by app.js -->
+        </select>
+      </div>
+      <div id="add-node-connect-row" class="add-node-connect-row" hidden>
+        <label class="add-node-connect-label">
+          <input type="checkbox" id="add-node-connect" />
+          <span>Connect from <strong id="add-node-from-label"></strong></span>
+        </label>
+        <input id="add-node-edge-label" type="text" class="add-node-input" placeholder="Edge label (optional)" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-add-node-cancel" class="btn btn-secondary">Cancel</button>
+      <button id="btn-add-node-ok"     class="btn btn-primary">⊕ Add Node</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     Insert Choice Modal (Preset → Append or Replace)
+     ══════════════════════════════════════════════════════════ -->
+<div id="insert-choice-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Insert template">
+  <div class="modal-box modal-box-sm">
+    <div class="modal-header">
+      <span style="font-size:1.3rem;">📋</span>
+      <span class="modal-title">Insert Template</span>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:10px;color:var(--text-muted);font-size:0.875rem;">
+        Your diagram already has content. What would you like to do with
+        <strong id="insert-choice-snippet-name">this template</strong>?
+      </p>
+      <div class="insert-choice-options">
+        <button class="insert-choice-card" id="btn-insert-append">
+          <div class="insert-choice-icon">⊕</div>
+          <div class="insert-choice-text">
+            <strong>Append to current diagram</strong>
+            <span>Add this template's nodes to your existing diagram</span>
+          </div>
+        </button>
+        <button class="insert-choice-card insert-choice-card-replace" id="btn-insert-replace">
+          <div class="insert-choice-icon">🔄</div>
+          <div class="insert-choice-text">
+            <strong>Replace diagram</strong>
+            <span>Start fresh with just this template</span>
+          </div>
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-insert-cancel" class="btn btn-secondary">Cancel</button>
     </div>
   </div>
 </div>

@@ -78,6 +78,8 @@ Open `http://localhost:8080` in Chrome or Edge. Service workers and OPFS require
   | `preview.js` | Mermaid renderer, zoom/pan, export |
   | `smartbar.js` | Command palette |
   | `snippets.js` | Diagram template data |
+  | `presets.js` | Template Library accordion UI |
+  | `canvas-edit.js` | Interactive canvas editing, source patching |
   | `themes.js` | App and Mermaid theme management |
   | `vault.js` | OPFS file adapter |
 
@@ -111,9 +113,10 @@ Open `http://localhost:8080` in Chrome or Edge. Service workers and OPFS require
 - [ ] Tested in Chrome 86+ (OPFS + PWA install)
 - [ ] Tested in Firefox (graceful OPFS fallback)
 - [ ] No new external CDN dependencies introduced
-- [ ] If new assets added, `sw.js` `APP_SHELL` updated
+- [ ] If new `js/*.js` files added, they are listed in `sw.js` `APP_SHELL` **and** `CACHE_NAME` version is incremented
 - [ ] User-interpolated strings escaped with `_escHtml`/`_escapeHtml`
 - [ ] No `console.log` left in production paths
+- [ ] Canvas Edit: tested select, rename, delete, connect, shape-change, add-node flows if canvas-edit.js was touched
 
 ---
 
