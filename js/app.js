@@ -139,32 +139,6 @@ function initPreviewPanel() {
 // Start the app
 boot();
 
-let deferredPrompt;
-const installBtn = document.getElementById('YOUR_INSTALL_BUTTON_ID');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent Chrome 67 and earlier from automatically showing the prompt
-  e.prompt();
-  // Stash the event so it can be triggered later.
-  deferredPrompt = e;
-  // Update UI to notify the user they can install the PWA
-  installBtn.style.display = 'block';
-
-  installBtn.addEventListener('click', () => {
-    // Hide our user interface that shows our A2HS button
-    installBtn.style.display = 'none';
-    // Show the native prompt
-    deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
-    deferredPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      }
-      deferredPrompt = null;
-    });
-  });
-});
-
 /* ── Canvas Edit ─────────────────────────────────────────────── */
 
 /* Auto-incrementing ID counter for new nodes */
@@ -585,7 +559,7 @@ async function refreshVaultModal() {
   $('vault-allocation-value').textContent = `${capMb} MB`;
 
   if (!state.vaultAvailable) {
-    $('vault-file-list').innerHTML = `<div class="vault-empty">⚠️ OPFS not available in this browser.<br>Use Chrome, Edge or a Chromium-based browser.</div>`;
+    $('vault-file-list').innerHTML = `<div class="vault-empty">⚠️ OPFS not available in this browser.<br>Use Chrome, Edge, Firefox 111+, or Safari 16.4+.</div>`;
     return;
   }
 
@@ -723,7 +697,7 @@ async function openDiagramFromVault(name) {
 
 async function saveDiagram() {
   if (!state.vaultAvailable) {
-    alert('OPFS is not available in this browser. Use Chrome or Edge to enable local storage.');
+    alert('OPFS is not available in this browser. Use Chrome, Edge, Firefox 111+, or Safari 16.4+ to enable local storage.');
     return;
   }
 
@@ -928,30 +902,71 @@ function initResizeHandle() {
 
 let _deferredInstallPrompt = null;
 
-function initPwaInstall() {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    _deferredInstallPrompt = e;
-    const banner = $('install-banner');
-    if (banner) {
-      setTimeout(() => banner.classList.add('show'), 3000);
-    }
-  });
+/**
+ * Detect whether the user is on iOS (iPhone/iPad) or macOS Safari.
+ * These browsers do not fire `beforeinstallprompt` and require the
+ * native "Add to Home Screen" flow instead.
+ */
+function _isSafari() {
+  const ua = navigator.userAgent;
+  // iOS Safari (iPhone, iPad, iPod) or macOS Safari (not Chrome/Edge/Firefox)
+  return /iP(hone|ad|od)/.test(ua) ||
+    (/Safari\//.test(ua) && !/Chrome\/|Chromium\/|EdgA?\/|OPR\/|Firefox\//.test(ua));
+}
 
+function _isInStandaloneMode() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    navigator.standalone === true;
+}
+
+function initPwaInstall() {
+  // Already installed — don't show the banner
+  if (_isInStandaloneMode()) return;
+
+  const banner     = $('install-banner');
+  const bannerText = banner ? banner.querySelector('.install-banner-text') : null;
   const installBtn = $('btn-install-pwa');
-  if (installBtn) {
-    installBtn.addEventListener('click', async () => {
-      if (!_deferredInstallPrompt) return;
-      await _deferredInstallPrompt.prompt();
+  const closeBtn   = $('btn-close-install-banner');
+
+  if (_isSafari()) {
+    // Safari (iOS + macOS) doesn't fire beforeinstallprompt.
+    // Show Add-to-Home-Screen guidance after a short delay.
+    if (banner && bannerText) {
+      const isIos = /iP(hone|ad|od)/.test(navigator.userAgent);
+      bannerText.innerHTML = isIos
+        ? '<strong>Install Sirens</strong>Tap <strong>Share ⎙</strong> then <em>Add to Home Screen</em>'
+        : '<strong>Install Sirens</strong>Open <strong>File → Add to Dock</strong> in Safari';
+      // Hide the native install button — there's nothing to prompt
+      if (installBtn) installBtn.style.display = 'none';
+      setTimeout(() => banner.classList.add('show'), 4000);
+    }
+  } else {
+    // Chrome, Edge, Samsung Internet, Android WebView — use the deferred prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      _deferredInstallPrompt = e;
+      if (banner) setTimeout(() => banner.classList.add('show'), 3000);
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!_deferredInstallPrompt) return;
+        await _deferredInstallPrompt.prompt();
+        _deferredInstallPrompt = null;
+        if (banner) banner.classList.remove('show');
+      });
+    }
+
+    // Hide install button on successful install
+    window.addEventListener('appinstalled', () => {
+      if (banner) banner.classList.remove('show');
       _deferredInstallPrompt = null;
-      $('install-banner').classList.remove('show');
     });
   }
 
-  const closeInstall = $('btn-close-install-banner');
-  if (closeInstall) {
-    closeInstall.addEventListener('click', () => {
-      $('install-banner').classList.remove('show');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      if (banner) banner.classList.remove('show');
     });
   }
 }

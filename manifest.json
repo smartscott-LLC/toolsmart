@@ -4,7 +4,7 @@
   "description": "A local-first progressive web app for creating and managing Mermaid diagrams professionally.",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "any",
   "theme_color": "#1e3922",
   "background_color": "#e1d9c4",
   "lang": "en",
@@ -27,6 +27,12 @@
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "icons/icon-512.png",
