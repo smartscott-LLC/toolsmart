@@ -524,6 +524,10 @@ export function initAIAssistant({ getEditorContent, setEditorContent, updateStat
   document.getElementById('ai-btn-save-settings').addEventListener('click', () => {
     const k = (document.getElementById('ai-api-key-input').value || '').trim();
     const m = (document.getElementById('ai-model-input').value  || '').trim() || DEFAULT_MODEL;
+    // Storing the user-supplied API key in localStorage is intentional: this is a
+    // browser-only PWA with no backend. The key is scoped to this origin and never
+    // sent anywhere other than openrouter.ai. Users are informed they provide their
+    // own key. lgtm[js/clear-text-storage-of-sensitive-data]
     if (k) localStorage.setItem(AI_KEY_STORE, k);
     localStorage.setItem(AI_MODEL_STORE, m);
     _toggleSettings(false);
