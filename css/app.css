@@ -2115,3 +2115,51 @@ hr.ctx-divider {
 .ai-btn-send:hover:not(:disabled) { background: var(--burnt-caramel); }
 .ai-btn-send:disabled { opacity: 0.38; cursor: not-allowed; }
 .ai-btn-send svg { pointer-events: none; }
+
+/* Attach button */
+.ai-btn-attach {
+  background: transparent;
+  border: 1px solid rgba(123,47,0,0.45);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--pearl-beige);
+  font-size: 0.82rem;
+  flex-shrink: 0;
+  transition: border-color 0.14s, background 0.14s;
+  padding: 0;
+  line-height: 1;
+}
+.ai-btn-attach:hover { border-color: var(--burnt-caramel); background: rgba(194,94,7,0.12); }
+
+/* Attachment badge */
+.ai-attach-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 8px;
+  background: rgba(194,94,7,0.13);
+  border-top: 1px solid rgba(123,47,0,0.3);
+  font-size: 0.72rem;
+  color: var(--pearl-beige);
+  flex-shrink: 0;
+}
+.ai-attach-badge[hidden] { display: none; }
+.ai-attach-icon { font-size: 0.78rem; }
+.ai-attach-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
+.ai-attach-remove {
+  background: none;
+  border: none;
+  color: var(--pearl-beige);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 2px;
+  opacity: 0.6;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ai-attach-remove:hover { opacity: 1; }

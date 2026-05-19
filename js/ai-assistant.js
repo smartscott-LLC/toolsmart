@@ -37,6 +37,7 @@ let _expanded         = false;
 let _showingSettings  = false;
 let _didDrag          = false;
 let _widget           = null;  // the root fixed-position div
+let _pendingFile      = null;  // { name: string, content: string } | null
 
 /* ── HTML escaping ───────────────────────────────────────────── */
 
@@ -419,6 +420,46 @@ function _toggleSettings(force) {
   }
 }
 
+/* ── File attachment ─────────────────────────────────────────── */
+
+const ATTACH_MAX_BYTES = 100 * 1024; // 100 KB — guard against oversized context
+
+function _clearPendingFile() {
+  _pendingFile = null;
+  const badge = document.getElementById('ai-attach-badge');
+  if (badge) badge.hidden = true;
+  const fileInput = document.getElementById('ai-file-input');
+  if (fileInput) fileInput.value = '';
+}
+
+function _showAttachBadge(name) {
+  const badge = document.getElementById('ai-attach-badge');
+  const nameEl = document.getElementById('ai-attach-name');
+  if (badge)  badge.hidden = false;
+  if (nameEl) nameEl.textContent = name;
+}
+
+function _handleFileSelect(file) {
+  if (!file) return;
+  const allowed = ['.mmd', '.md', '.txt', '.json', '.csv'];
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  if (!allowed.includes(ext)) {
+    if (_updateStatus) _updateStatus('warning', `File type "${ext}" not supported — use .mmd .md .txt .json .csv`);
+    return;
+  }
+  if (file.size > ATTACH_MAX_BYTES) {
+    if (_updateStatus) _updateStatus('warning', `File too large (max 100 KB) — try pasting the content instead`);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _pendingFile = { name: file.name, content: e.target.result };
+    _showAttachBadge(file.name);
+    document.getElementById('ai-chat-input')?.focus();
+  };
+  reader.readAsText(file);
+}
+
 /* ── Send message ────────────────────────────────────────────── */
 
 async function _handleSend() {
@@ -426,12 +467,22 @@ async function _handleSend() {
   const input = document.getElementById('ai-chat-input');
   if (!input) return;
   const text = input.value.trim();
-  if (!text) return;
+  if (!text && !_pendingFile) return;
 
   input.value = '';
   input.style.height = '';
 
-  _appendMessage('user', text);
+  // Build the message: prepend attached file content if present
+  let fullText = text;
+  if (_pendingFile) {
+    const ext = _pendingFile.name.split('.').pop().toLowerCase();
+    const lang = ext === 'mmd' ? 'mermaid' : ext === 'json' ? 'json' : ext === 'md' ? 'markdown' : 'text';
+    const fileBlock = `📎 **${_pendingFile.name}**\n\`\`\`${lang}\n${_pendingFile.content}\n\`\`\``;
+    fullText = text ? `${fileBlock}\n\n${text}` : fileBlock;
+    _clearPendingFile();
+  }
+
+  _appendMessage('user', fullText);
 
   const streamId = `ai-stream-${Date.now()}`;
   const streamEl = _appendMessage('assistant', '…', streamId);
@@ -441,7 +492,7 @@ async function _handleSend() {
   if (sendBtn) sendBtn.disabled = true;
 
   await _callAPI(
-    text,
+    fullText,
     (full) => { _updateStreamEl(streamEl, full); },
     (full) => {
       _isStreaming = false;
@@ -505,7 +556,15 @@ function _buildWidget() {
       <!-- Chat panel -->
       <div class="ai-chat-panel" id="ai-chat-panel" hidden>
         <div class="ai-chat-messages" id="ai-chat-messages" role="log" aria-live="polite"></div>
+        <!-- Attachment badge (shown when a file is pending) -->
+        <div class="ai-attach-badge" id="ai-attach-badge" hidden>
+          <span class="ai-attach-icon">📎</span>
+          <span class="ai-attach-name" id="ai-attach-name"></span>
+          <button class="ai-attach-remove" id="ai-attach-remove" title="Remove attachment" aria-label="Remove attachment">✕</button>
+        </div>
         <div class="ai-chat-input-row">
+          <input type="file" id="ai-file-input" accept=".mmd,.md,.txt,.json,.csv" style="display:none" aria-label="Attach file" />
+          <button id="ai-btn-attach" class="ai-btn-attach" title="Attach a text file (.mmd .md .txt .json .csv)" aria-label="Attach file">📎</button>
           <textarea
             id="ai-chat-input"
             class="ai-chat-input"
@@ -614,6 +673,23 @@ export function initAIAssistant({ getEditorContent, setEditorContent, updateStat
     _toggleSettings(false);
     _appendMessage('assistant', 'Chat history cleared. How can I help with your diagram?');
     document.getElementById('ai-chat-input')?.focus();
+  });
+
+  /* Attach button → open file picker */
+  document.getElementById('ai-btn-attach').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('ai-file-input').click();
+  });
+
+  /* File input change → read the file */
+  document.getElementById('ai-file-input').addEventListener('change', (e) => {
+    _handleFileSelect(e.target.files[0] || null);
+  });
+
+  /* Attachment badge remove button */
+  document.getElementById('ai-attach-remove').addEventListener('click', (e) => {
+    e.stopPropagation();
+    _clearPendingFile();
   });
 
   /* Send button */
