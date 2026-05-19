@@ -188,7 +188,17 @@ async function _callAPI(userText, onChunk, onDone, onError) {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`OpenRouter ${res.status}: ${text.slice(0, 200)}`);
+      let msg;
+      try {
+        const json = JSON.parse(text);
+        msg = json?.error?.message || text.slice(0, 200);
+      } catch {
+        msg = text.slice(0, 200);
+      }
+      if (res.status === 401) {
+        msg = `Authentication failed — please check your API key in Settings ⚙️. (${msg})`;
+      }
+      throw new Error(`OpenRouter ${res.status}: ${msg}`);
     }
 
     const reader  = res.body.getReader();
@@ -434,7 +444,7 @@ function _buildWidget() {
             <p>Default model: <code>meta-llama/llama-4-scout:free</code>&thinsp;— Llama 4, free tier, 10 M token context. No cost per message.</p>
           </div>
           <label class="ai-settings-label" for="ai-api-key-input">API Key</label>
-          <input type="password" id="ai-api-key-input" class="ai-settings-input" placeholder="sk-or-…" autocomplete="off" spellcheck="false" />
+          <input type="password" id="ai-api-key-input" class="ai-settings-input" placeholder="sk-or-…" autocomplete="new-password" spellcheck="false" />
           <label class="ai-settings-label" for="ai-model-input" style="margin-top:8px;">Model ID</label>
           <input type="text" id="ai-model-input" class="ai-settings-input" autocomplete="off" spellcheck="false" />
           <button id="ai-btn-save-settings" class="ai-btn-primary">Save &amp; Start Chatting</button>
