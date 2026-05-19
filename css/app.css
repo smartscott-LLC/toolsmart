@@ -1763,7 +1763,7 @@ hr.ctx-divider {
 .ai-widget.ai-box-mode {
   width: 20vw;
   min-width: 280px;
-  height: 30vh;
+  height: 50vh;
   min-height: 240px;
   border-radius: 10px;
 }
