@@ -178,8 +178,8 @@ async function _callAPI(userText, onChunk, onDone, onError) {
     const res = await fetch(OPENROUTER_API, {
       method: 'POST',
       headers: {
-        'Authorization':  `Bearer ${apiKey}`,
         'Content-Type':   'application/json',
+        'Authorization':  `Bearer ${apiKey}`,
         'HTTP-Referer':   window.location.origin,
         'X-Title':        'Sirens Mermaid Studio',
       },
@@ -204,6 +204,8 @@ async function _callAPI(userText, onChunk, onDone, onError) {
     const reader  = res.body.getReader();
     const decoder = new TextDecoder();
 
+    let streamError = null;
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -217,6 +219,11 @@ async function _callAPI(userText, onChunk, onDone, onError) {
         if (data === '[DONE]') break;
         try {
           const parsed = JSON.parse(data);
+          /* Surface any error the API embeds inside the stream */
+          if (parsed.error) {
+            streamError = parsed.error.message || JSON.stringify(parsed.error);
+            break;
+          }
           const delta  = parsed.choices?.[0]?.delta?.content || '';
           if (delta) {
             accumulated += delta;
@@ -224,7 +231,11 @@ async function _callAPI(userText, onChunk, onDone, onError) {
           }
         } catch { /* ignore malformed SSE frames */ }
       }
+
+      if (streamError) break;
     }
+
+    if (streamError) throw new Error(`OpenRouter stream error: ${streamError}`);
 
     _messages.push({ role: 'assistant', content: accumulated });
     onDone(accumulated);
