@@ -36,6 +36,40 @@ let _mermaidCounter = 0;
 let _renderGeneration = 0;  // incremented on every render; used to discard stale results
 let _hasRendered = false;   // true once a diagram has been successfully rendered
 
+/* ── Theme override ─────────────────────────────────────────── */
+
+/** When non-null, strip any %%{init}%% block from the source and inject this theme. */
+let _themeOverride = null;
+let _themeVarsOverride = {};
+
+/**
+ * Set a global Mermaid theme override that takes priority over any %%{init}%% block
+ * embedded in the diagram source. Pass theme=null to disable the override.
+ * @param {string|null} theme  e.g. 'base' | 'dark' | 'default' | 'forest' | 'neutral'
+ * @param {Object} vars        themeVariables to inject (usually only needed for 'base')
+ */
+export function setThemeOverride(theme, vars = {}) {
+  _themeOverride = theme;
+  _themeVarsOverride = vars;
+}
+
+/**
+ * Strip any leading %%{init:...}%% block from source and, if a theme override is
+ * active, prepend a fresh %%{init}%% block with that theme.
+ * @param {string} source
+ * @returns {string}
+ */
+function _applyThemeOverride(source) {
+  if (!_themeOverride) return source;
+  // Remove existing init directive (single- or multi-line; JSON cannot contain %%)
+  const stripped = source.replace(/^\s*%%\s*\{[\s\S]*?%%\s*\n?/, '');
+  const initObj = { theme: _themeOverride };
+  if (Object.keys(_themeVarsOverride).length > 0) {
+    initObj.themeVariables = _themeVarsOverride;
+  }
+  return `%%{init:${JSON.stringify(initObj)}}%%\n${stripped}`;
+}
+
 /* ── Mermaid initialisation ─────────────────────────────────── */
 
 export function initMermaid(theme = 'base') {
@@ -134,7 +168,7 @@ export async function renderDiagram(source, { onError, onSuccess } = {}) {
   const id = `mermaid-svg-${_mermaidCounter}`;
 
   try {
-    const { svg } = await window.mermaid.render(id, trimmed);
+    const { svg } = await window.mermaid.render(id, _applyThemeOverride(trimmed));
 
     // Discard result if a newer render has already been requested.
     if (thisGeneration !== _renderGeneration) return;
@@ -565,6 +599,40 @@ export function exportPng(filename = 'diagram.png', options = {}) {
   const svg = _canvas && _canvas.querySelector('svg');
   if (!svg) return;
 
+  // Collect computed text colours and font sizes from the LIVE foreignObjects before
+  // cloning. getComputedStyle() works only on elements that are part of the live DOM.
+  // We record them now so we can use them in the clone after cloneNode().
+  const liveFoData = Array.from(svg.querySelectorAll('foreignObject')).map((fo) => {
+    // Find the innermost text-bearing element to read its computed style.
+    const inner = fo.querySelector('.nodeLabel, .label, span, div') || fo.firstElementChild;
+    let color    = '#000000';
+    let fontSize = 14;
+    let lines    = [];
+    if (inner) {
+      const cs = getComputedStyle(inner);
+      color    = cs.color    || '#000000';
+      fontSize = parseFloat(cs.fontSize) || 14;
+      // Walk the subtree to collect text lines split by <br> elements.
+      const walk = (el) => {
+        for (const node of el.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const t = node.textContent;
+            if (lines.length === 0) lines.push(t);
+            else lines[lines.length - 1] += t;
+          } else if (node.nodeName === 'BR') {
+            lines.push('');
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            walk(node);
+          }
+        }
+      };
+      walk(inner);
+      lines = lines.map((l) => l.trim()).filter((l, i, a) => l || i < a.length - 1);
+    }
+    if (!lines.length) lines = [fo.textContent.trim()];
+    return { color, fontSize, lines };
+  });
+
   // Clone so we don't mutate the live SVG
   const svgClone = svg.cloneNode(true);
 
@@ -575,24 +643,37 @@ export function exportPng(filename = 'diagram.png', options = {}) {
 
   // Strip <foreignObject> elements: Chrome/Firefox refuse to draw SVGs containing
   // <foreignObject> onto a canvas (they taint it, causing toBlob() to return null).
-  // Replace each one with a plain SVG <text> centred in the same bounding box so
-  // labels still appear in the PNG output.
-  svgClone.querySelectorAll('foreignObject').forEach((fo) => {
+  // Replace each one with SVG <text>/<tspan> elements using the computed styles
+  // collected from the live DOM above (avoids unresolved 'currentColor').
+  svgClone.querySelectorAll('foreignObject').forEach((fo, i) => {
     const x  = parseFloat(fo.getAttribute('x')      || '0');
     const y  = parseFloat(fo.getAttribute('y')      || '0');
     const w  = parseFloat(fo.getAttribute('width')  || '0');
     const h  = parseFloat(fo.getAttribute('height') || '0');
-    const label = fo.textContent.trim();
-    if (label) {
+    const { color, fontSize, lines } = liveFoData[i] || { color: '#000000', fontSize: 14, lines: [''] };
+
+    if (lines.some((l) => l.length > 0)) {
+      const lineHeight = fontSize * 1.3;
+      const totalTextH = lineHeight * lines.length;
+      // Centre the text block vertically in the foreignObject bounding box
+      const startY = y + h / 2 - totalTextH / 2 + fontSize;
+
       const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       textEl.setAttribute('x', x + w / 2);
-      textEl.setAttribute('y', y + h / 2);
+      textEl.setAttribute('y', startY);
       textEl.setAttribute('text-anchor', 'middle');
-      textEl.setAttribute('dominant-baseline', 'middle');
       textEl.setAttribute('font-family', "Inter,'Segoe UI',system-ui,sans-serif");
-      textEl.setAttribute('font-size', '14');
-      textEl.setAttribute('fill', 'currentColor');
-      textEl.textContent = label;
+      textEl.setAttribute('font-size', fontSize);
+      textEl.setAttribute('fill', color);
+
+      lines.forEach((line, li) => {
+        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan.setAttribute('x', x + w / 2);
+        if (li > 0) tspan.setAttribute('dy', lineHeight);
+        tspan.textContent = line;
+        textEl.appendChild(tspan);
+      });
+
       fo.parentNode.replaceChild(textEl, fo);
     } else {
       fo.remove();
@@ -670,6 +751,67 @@ export function exportPng(filename = 'diagram.png', options = {}) {
 export function exportMmd(source, filename = 'diagram.mmd') {
   const blob = new Blob([source], { type: 'text/plain' });
   _download(blob, filename);
+}
+
+/**
+ * Export the current diagram as a PDF by opening a print dialog.
+ * Uses a hidden iframe loaded from a Blob URL so no popup-blocker issues arise.
+ * The user's browser print dialog opens — choosing "Save as PDF" produces the file.
+ * @param {string} title  Suggested document title (shown in the print dialog)
+ */
+export function exportPdf(title = 'diagram') {
+  const svg = _canvas && _canvas.querySelector('svg');
+  if (!svg) {
+    console.warn('[Sirens] exportPdf: no SVG found to export');
+    return;
+  }
+
+  const clone = svg.cloneNode(true);
+  const vb    = svg.viewBox.baseVal;
+  if (vb && vb.width > 0 && vb.height > 0) {
+    clone.setAttribute('width',  vb.width);
+    clone.setAttribute('height', vb.height);
+  }
+  if (!clone.getAttribute('xmlns')) {
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  }
+
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  // Escape the title to guard against any untrusted filename characters in HTML context
+  const safeTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>${safeTitle}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { display: flex; justify-content: center; align-items: flex-start; padding: 12mm; background: #fff; }
+    svg  { max-width: 100%; height: auto; }
+    @page { margin: 12mm; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>${svgStr}</body>
+</html>`;
+
+  const blob  = new Blob([html], { type: 'text/html' });
+  const url   = URL.createObjectURL(blob);
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;border:none;visibility:hidden;';
+  frame.src = url;
+  document.body.appendChild(frame);
+
+  frame.onload = () => {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    // Give the print dialog time to open before removing the frame and revoking the URL
+    setTimeout(() => {
+      document.body.removeChild(frame);
+      URL.revokeObjectURL(url);
+    }, 2000);
+  };
 }
 
 function _download(blob, filename) {
