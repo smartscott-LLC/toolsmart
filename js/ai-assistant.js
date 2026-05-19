@@ -3,14 +3,14 @@
    Floating orb/box interface powered by OpenRouter.
    - Orb: 4 vw diameter, brand colours, draggable
    - Box: 20 vw × 30 vh, dark-green bg, rust border, cream text
-   - Model: openai/gpt-5.2
+   - Model: openrouter/owl-alpha
    - API key stored in localStorage; user provides their own key
    ============================================================ */
 
 const AI_KEY_STORE   = 'sirens-ai-api-key';
 const AI_MODEL_STORE = 'sirens-ai-model';
 const AI_POS_STORE   = 'sirens-ai-position';
-const DEFAULT_MODEL  = 'openai/gpt-5.2';
+const DEFAULT_MODEL  = 'openrouter/owl-alpha';
 const OPENROUTER_API = 'https://openrouter.ai/api/v1/chat/completions';
 
 /* Inline Sirens icon (mermaid / siren branding) */
@@ -178,8 +178,8 @@ async function _callAPI(userText, onChunk, onDone, onError) {
     const res = await fetch(OPENROUTER_API, {
       method: 'POST',
       headers: {
-        'Authorization':  `Bearer ${apiKey}`,
         'Content-Type':   'application/json',
+        'Authorization':  `Bearer ${apiKey}`,
         'HTTP-Referer':   window.location.origin,
         'X-Title':        'Sirens Mermaid Studio',
       },
@@ -452,7 +452,7 @@ function _buildWidget() {
           <div class="ai-settings-banner">
             <strong>🔑 OpenRouter API Key required</strong>
             <p>Siren AI uses <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer">OpenRouter</a> to access AI models. Sign up for a <strong>free</strong> API key — no credit card needed.</p>
-            <p>Default model: <code>openai/gpt-5.2</code>&thinsp;— change it below if needed.</p>
+            <p>Default model: <code>openrouter/owl-alpha</code>&thinsp;— change it below if needed.</p>
           </div>
           <label class="ai-settings-label" for="ai-api-key-input">API Key</label>
           <input type="password" id="ai-api-key-input" class="ai-settings-input" placeholder="sk-or-…" autocomplete="new-password" spellcheck="false" />
