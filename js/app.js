@@ -32,6 +32,7 @@ import { initCanvasEdit, toggleCanvasEdit,
          patchAddEdge, getSelectedNodeInfo,
          startConnectMode, renameSelected,
          SHAPE_CATALOGUE }                     from './canvas-edit.js';
+import { initAIAssistant }                    from './ai-assistant.js';
 
 /* ── State ──────────────────────────────────────────────────── */
 
@@ -1142,6 +1143,23 @@ async function boot() {
   initKeyboardShortcuts();
   initPwaInstall();
   initDragDrop();
+
+  /* AI Assistant — floating orb/box */
+  initAIAssistant({
+    getEditorContent: () => editor ? editor.getValue() : '',
+    setEditorContent: (code) => {
+      if (!editor) return;
+      editor.setValue(code);
+      localStorage.setItem('sirens-editor-content', code);
+      state.isDirty = true;
+      updateDirtyIndicator();
+      renderDiagram(code, {
+        onError:   (errors) => { editor.setErrors(errors); updateStatus('error', `Parse error on line ${errors[0]?.line || '?'}`); },
+        onSuccess: () => { editor.setErrors([]); updateStatus('ok', 'Diagram OK'); },
+      });
+    },
+    updateStatus,
+  });
 
   // Sync sidebar UI with restored settings
   syncStyleSidebarState(savedThemeSettings);
