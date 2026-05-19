@@ -115,8 +115,14 @@ function _initDrag() {
 
   _widget.addEventListener('pointerup', () => {
     if (!dragging) return;
+    const wasDragging = _didDrag;
     dragging = false;
+    _didDrag = false;
     _savePos(_widget.offsetLeft, _widget.offsetTop);
+    /* Expand orb on tap/click (no drag occurred) */
+    if (!wasDragging && !_expanded) {
+      _expand();
+    }
   });
 }
 
@@ -424,8 +430,8 @@ function _buildWidget() {
         <div class="ai-settings-scroll">
           <div class="ai-settings-banner">
             <strong>🔑 OpenRouter API Key required</strong>
-            <p>Siren AI uses <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer">OpenRouter</a> to access AI models. Get a <strong>free</strong> API key — no credit card needed.</p>
-            <p>Recommended free model: <code>meta-llama/llama-4-scout:free</code>&thinsp;— free, 10 M token context.</p>
+            <p>Siren AI uses <a href="https://openrouter.ai" target="_blank" rel="noopener noreferrer">OpenRouter</a> to access AI models. Sign up for a <strong>free</strong> API key — no credit card needed.</p>
+            <p>Default model: <code>meta-llama/llama-4-scout:free</code>&thinsp;— Llama 4, free tier, 10 M token context. No cost per message.</p>
           </div>
           <label class="ai-settings-label" for="ai-api-key-input">API Key</label>
           <input type="password" id="ai-api-key-input" class="ai-settings-input" placeholder="sk-or-…" autocomplete="off" spellcheck="false" />
@@ -499,14 +505,8 @@ export function initAIAssistant({ getEditorContent, setEditorContent, updateStat
     });
   }
 
-  /* Drag */
+  /* Drag (orb tap-to-expand handled in _initDrag pointerup) */
   _initDrag();
-
-  /* Orb click → expand (only if not dragging) */
-  _widget.querySelector('.ai-orb-face').addEventListener('click', () => {
-    if (_didDrag) { _didDrag = false; return; }
-    _expand();
-  });
 
   /* Minimize */
   document.getElementById('ai-btn-minimize').addEventListener('click', (e) => {
