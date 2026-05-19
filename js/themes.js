@@ -49,7 +49,7 @@ export const MERMAID_THEMES = [
 ];
 
 /** Brand-colored Mermaid init variables for 'base' theme */
-const BRAND_MERMAID_VARS = {
+export const BRAND_MERMAID_VARS = {
   primaryColor:        '#1e3922',
   primaryTextColor:    '#ddd0b0',
   primaryBorderColor:  '#c25e07',

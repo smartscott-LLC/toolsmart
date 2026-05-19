@@ -8,7 +8,8 @@ import { createEditor, detectDiagramType }    from './editor.js';
 import { initPreview, renderDiagram,
          initMermaid, zoomIn, zoomOut,
          resetView, fitDiagram,
-         exportSvg, exportPng, exportMmd }    from './preview.js';
+         exportSvg, exportPng, exportMmd,
+         exportPdf, setThemeOverride }    from './preview.js';
 import { initSmartBar, openSmartBar,
          closeSmartBar }                       from './smartbar.js';
 import { initVault, isVaultAvailable,
@@ -23,7 +24,8 @@ import { APP_THEMES, MERMAID_THEMES,
          applyCustomCss, restoreThemeSettings,
          getCurrentAppTheme,
          getCurrentMermaidTheme,
-         getCustomCss }                        from './themes.js';
+         getCustomCss,
+         BRAND_MERMAID_VARS }                from './themes.js';
 import { initPresets }                         from './presets.js';
 import { initCanvasEdit, toggleCanvasEdit,
          isEditMode, exitCanvasEdit,
@@ -450,6 +452,7 @@ function handleSmartBarAction(actionId) {
     case 'export-svg':    exportSvg(`${getFileName()}.svg`); break;
     case 'export-png':    exportPng(`${getFileName()}.png`, { onError: (msg) => updateStatus('error', msg) }); break;
     case 'export-png-bw': exportPng(`${getFileName()}.png`, { blackAndWhite: true, onError: (msg) => updateStatus('error', msg) }); break;
+    case 'export-pdf':    exportPdf(getFileName()); break;
     case 'export-mmd':    exportMmd(editor.getValue(), `${getFileName()}.mmd`); break;
     case 'fit-diagram':   fitDiagram();                  break;
     case 'zoom-in':       zoomIn();                      break;
@@ -779,7 +782,10 @@ function initStyleSidebar() {
   });
 
   select.addEventListener('change', () => {
-    applyMermaidTheme(select.value, () => {
+    const theme = select.value;
+    const vars  = theme === 'base' ? BRAND_MERMAID_VARS : {};
+    setThemeOverride(theme, vars);
+    applyMermaidTheme(theme, () => {
       const val = editor ? editor.getValue() : '';
       renderDiagram(val, {
         onError: (errors) => editor && editor.setErrors(errors),
@@ -848,6 +854,7 @@ function initExportModal() {
     switch (fmt) {
       case 'svg': exportSvg(`${name}.svg`);                                                             break;
       case 'png': exportPng(`${name}.png`, { blackAndWhite: bw, onError: (msg) => updateStatus('error', msg) }); break;
+      case 'pdf': exportPdf(name);                                                                       break;
       case 'mmd': exportMmd(editor.getValue(), `${name}.mmd`);     break;
     }
     closeExportModal();
@@ -1127,6 +1134,13 @@ async function boot() {
       });
     }
   });
+
+  // Apply the saved Mermaid theme override so any %%{init}%% block in the source
+  // is overridden by the user's theme selection from the very first render.
+  {
+    const mt = savedThemeSettings.mermaidTheme || 'base';
+    setThemeOverride(mt, mt === 'base' ? BRAND_MERMAID_VARS : {});
+  }
 
   // Init subsystems
   state.vaultAvailable = await initVault();

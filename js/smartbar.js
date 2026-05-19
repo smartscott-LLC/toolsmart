@@ -15,6 +15,7 @@ const ACTIONS = [
   { id: 'export-svg',    label: 'Export as SVG',          description: 'Download the diagram as SVG vector image',              icon: '🖼️', tag: 'export' },
   { id: 'export-png',    label: 'Export as PNG',          description: 'Download the diagram as PNG (3× resolution)',           icon: '🖼️', tag: 'export' },
   { id: 'export-png-bw', label: 'Export as Black & White PNG', description: 'Download the diagram as grayscale PNG (print-ready)',   icon: '🖤', tag: 'export' },
+  { id: 'export-pdf',    label: 'Export as PDF',          description: 'Open print dialog to save diagram as PDF',              icon: '📄', tag: 'export' },
   { id: 'export-mmd',    label: 'Export as .mmd',         description: 'Download the raw Mermaid source file',                  icon: '📝', tag: 'export' },
   { id: 'fit-diagram',  label: 'Fit Diagram to View', description: 'Auto-scale the preview to fit the panel',     icon: '🔍', tag: 'view'   },
   { id: 'zoom-in',      label: 'Zoom In',             description: 'Increase diagram preview zoom',                icon: '➕', tag: 'view'   },
