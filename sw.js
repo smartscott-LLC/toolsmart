@@ -1,7 +1,7 @@
 /* ============================================================
    Sirens — Service Worker  (Cache-first for app shell)
    ============================================================ */
-const CACHE_NAME = 'sirens-v5';
+const CACHE_NAME = 'sirens-v6';
 
 // App-shell files that live in this origin
 const APP_SHELL = [
@@ -18,6 +18,7 @@ const APP_SHELL = [
   '/js/snippets.js',
   '/js/canvas-edit.js',
   '/js/presets.js',
+  '/js/ai-assistant.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
