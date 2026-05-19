@@ -154,6 +154,43 @@ flowchart/graph, sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram, gant
 - Export: SVG, PNG (3×), B&W PNG, raw .mmd file`;
 }
 
+async function _testKey() {
+  const resultEl = document.getElementById('ai-test-result');
+  const keyInput = document.getElementById('ai-api-key-input');
+  const key = (keyInput?.value || '').trim() || _getApiKey();
+
+  if (!key) {
+    if (resultEl) resultEl.textContent = '❌ No key entered.';
+    return;
+  }
+  if (resultEl) resultEl.textContent = `⏳ Testing key …${key.slice(-6)}`;
+
+  try {
+    const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: _getModel(),
+        stream: false,
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+    });
+    const body = await res.text();
+    if (res.ok) {
+      if (resultEl) resultEl.innerHTML = `<span style="color:#4caf50">✓ ${res.status} OK — key works!</span>`;
+    } else {
+      let detail = body.slice(0, 300);
+      try { detail = JSON.parse(body)?.error?.message || detail; } catch { /* ok */ }
+      if (resultEl) resultEl.innerHTML = `<span style="color:#e57373">✗ ${res.status}: ${_esc(detail)}</span>`;
+    }
+  } catch (err) {
+    if (resultEl) resultEl.innerHTML = `<span style="color:#e57373">✗ Network error: ${_esc(err.message)}</span>`;
+  }
+}
+
 async function _callAPI(userText, onChunk, onDone, onError) {
   const apiKey = _getApiKey();
   if (!apiKey) {
@@ -459,6 +496,8 @@ function _buildWidget() {
           <label class="ai-settings-label" for="ai-model-input" style="margin-top:8px;">Model ID</label>
           <input type="text" id="ai-model-input" class="ai-settings-input" autocomplete="off" spellcheck="false" />
           <button id="ai-btn-save-settings" class="ai-btn-primary">Save &amp; Start Chatting</button>
+          <button id="ai-btn-test-key" class="ai-btn-ghost">Test Key</button>
+          <div id="ai-test-result" style="margin-top:6px;font-size:11px;word-break:break-all;"></div>
           <button id="ai-btn-clear-history" class="ai-btn-ghost">Clear Chat History</button>
         </div>
       </div>
@@ -540,6 +579,9 @@ export function initAIAssistant({ getEditorContent, setEditorContent, updateStat
     e.stopPropagation();
     _toggleSettings();
   });
+
+  /* Test key */
+  document.getElementById('ai-btn-test-key').addEventListener('click', () => { _testKey(); });
 
   /* Save settings */
   document.getElementById('ai-btn-save-settings').addEventListener('click', () => {
