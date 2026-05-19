@@ -11,7 +11,7 @@ const AI_KEY_STORE   = 'sirens-ai-api-key';
 const AI_MODEL_STORE = 'sirens-ai-model';
 const AI_POS_STORE   = 'sirens-ai-position';
 const DEFAULT_MODEL  = 'openrouter/owl-alpha';
-const OPENROUTER_API = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_API = 'https://openrouter.ai/api/v1';
 
 /* Inline Sirens icon (mermaid / siren branding) */
 const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -175,7 +175,7 @@ async function _callAPI(userText, onChunk, onDone, onError) {
   let accumulated = '';
 
   try {
-    const res = await fetch(OPENROUTER_API, {
+    const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type':   'application/json',
