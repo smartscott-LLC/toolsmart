@@ -1,7 +1,7 @@
 /* ============================================================
    Sirens — Service Worker  (Cache-first for app shell)
    ============================================================ */
-const CACHE_NAME = 'sirens-v6';
+const CACHE_NAME = 'sirens-v7';
 
 // App-shell files that live in this origin
 const APP_SHELL = [

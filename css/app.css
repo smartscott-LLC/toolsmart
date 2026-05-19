@@ -1698,6 +1698,12 @@ hr.ctx-divider {
    AI Assistant — Siren AI floating orb / chat box
    ============================================================ */
 
+/* Ensure CSS display:flex rules never override [hidden] on AI widget children */
+.ai-orb-face[hidden],
+.ai-box[hidden],
+.ai-settings-panel[hidden],
+.ai-chat-panel[hidden] { display: none !important; }
+
 /* ── Root widget (position: fixed, always on top) ─────────── */
 .ai-widget {
   position: fixed;
