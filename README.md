@@ -1,4 +1,4 @@
-# Sirens — Mermaid Studio
+# Sirens — Mermaid Studio  A smartscott.com ToolSmart Application
 
 > **A local-first, installable Progressive Web App for creating and managing Mermaid diagrams professionally.**
 
